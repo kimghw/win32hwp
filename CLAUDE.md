@@ -45,6 +45,11 @@ def get_hwp_instance():
     return None
 ```
 
+**ROT 방식의 특징:**
+- 이미 실행 중인 한글 프로세스에 연결
+- 새 인스턴스를 생성하지 않음
+- 한글이 먼저 열려 있어야 함
+
 ## 주요 API 패턴
 
 ### 테이블 생성
@@ -83,6 +88,49 @@ hwp.HAction.Run("Cancel")  # 선택 해제
 hwp.HAction.Run("MoveSelRight")  # 선택
 text = hwp.GetTextFile("TEXT", "saveblock")  # 선택 영역만
 hwp.HAction.Run("Cancel")  # 선택 해제
+```
+
+## cursor_position_monitor.py 함수 요약
+
+| 함수 | 인자 | 반환값 |
+|------|------|--------|
+| `get_hwp_instance()` | 없음 | hwp 객체 또는 None |
+| `get_current_pos(hwp)` | hwp | `{list_id, para_id, char_pos, page, line, column, insert_mode}` |
+| `get_para_range(hwp)` | hwp | `{current: (l,p,c), start: int, end: int}` |
+| `get_line_range(hwp)` | hwp | `{current: (l,p,c), start: int, end: int, line_starts: []}` |
+| `get_sentences(hwp, include_text=False)` | hwp, bool | `[{index, start, end}, ...]` 또는 `(list, text)` |
+| `get_cursor_index(hwp, pos=None)` | hwp, int/None | `{sentence_index, word_index, sentence_start, sentence_end}` |
+| `monitor_position(hwp, interval=0.1, callback=None)` | hwp, float, func | 없음 (폴링 루프) |
+
+## custom_block.py - CustomBlock 클래스
+
+블록(범위) 선택 전용 클래스. HWP pos와 텍스트 인덱스가 다름에 주의 (한글=pos 2, 영문/공백=pos 1).
+
+### 메서드 요약
+
+| 메서드 | 인자 | 설명 |
+|--------|------|------|
+| `select_para(para_id)` | 문단ID | 문단 전체 선택 |
+| `select_line_by_index(para_id, line_index)` | 문단ID, 줄번호(0~) | n번째 줄 선택 |
+| `select_line_by_pos(para_id, pos)` | 문단ID, pos | pos가 속한 줄 선택 |
+| `select_lines_range(para_id, start, end)` | 문단ID, 시작줄, 끝줄 | n~m번째 줄 선택 (없으면 끝까지) |
+| `select_sentence(para_id, sentence_index)` | 문단ID, 문장번호(1~) | n번째 문장 선택 |
+| `select_sentences_range(para_id, start, end)` | 문단ID, 시작, 끝 | n~m번째 문장 선택 (없으면 끝까지) |
+| `select_sentence_in_line(para_id, pos)` | 문단ID, pos | pos가 속한 문장 선택 (줄 넘김 X) |
+| `cancel()` | 없음 | 블록 선택 해제 |
+| `get_selected_text()` | 없음 | 선택된 텍스트 반환 |
+
+### 사용 예시
+```python
+from custom_block import CustomBlock
+
+block = CustomBlock(hwp)
+pos = hwp.GetPos()
+para_id = pos[1]
+
+block.select_sentence(para_id, 1)  # 첫 번째 문장 선택
+text = block.get_selected_text()
+block.cancel()
 ```
 
 ## 주의사항

@@ -277,24 +277,23 @@ def monitor_position(hwp, interval=0.1, callback=None):
 
 
 if __name__ == "__main__":
-    hwp = win32.Dispatch('HWPFrame.HwpObject')
-    hwp.RegisterModule('FilePathCheckDLL', 'FilePathCheckerModuleExample')
-    hwp.XHwpWindows.Item(0).Visible = True
-    hwp.Open(r"d:\hwp_docs\test.hwp", "HWP", "forceopen:true")
-    hwp.EditMode = 1
+    hwp = get_hwp_instance()
+    if hwp is None:
+        print("한글이 실행 중이지 않습니다. ROT 연결 실패.")
+        exit(1)
 
-    print("커서 인덱스 테스트\n")
+    print("커서 위치 실시간 추적 (Ctrl+C로 종료)\n")
+    print(f"{'문단번호':>8} | {'위치번호':>8} | {'페이지':>4} | {'줄':>4} | {'칸':>4}")
+    print("-" * 50)
+
     last_pos = None
     while True:
         try:
             pos = hwp.GetPos()
             current_key = (pos[0], pos[1], pos[2])
             if current_key != last_pos:
-                result = get_cursor_index(hwp)
-                if result:
-                    print(f"문장 {result['sentence_index']} / 단어 {result['word_index']} | 범위: {result['sentence_start']}~{result['sentence_end']}")
-                else:
-                    print("위치 없음")
+                info = get_current_pos(hwp)
+                print(f"{info['para_id']:>8} | {info['char_pos']:>8} | {info['page']:>4} | {info['line']:>4} | {info['column']:>4}", flush=True)
                 last_pos = current_key
             time.sleep(0.1)
         except KeyboardInterrupt:
