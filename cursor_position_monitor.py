@@ -2,30 +2,22 @@
 """
 한글(HWP) 커서 위치 모니터링 - 폴링 방식
 
-주요 구현 로직:
+함수 네이밍 규칙:
+- get_hwp_instance: 유틸리티 (snake_case)
+- get_*: 위치/범위 정보 조회 함수 (snake_case)
 
-1. 위치 정보 획득
-   - GetPos(): (list_id, para_id, char_pos) 반환
-   - KeyIndicator(): 페이지, 줄, 칸 등 상태바 정보
+반환값 키 규칙:
+- current: 현재 위치 튜플 (list_id, para_id, char_pos)
+- start / end: 범위의 시작/끝 pos
+- index: 순번 (1부터 시작)
+- text: 텍스트 내용
 
-2. 문단 범위 (GetParaRange)
-   - MoveParaBegin → GetPos() → 문단 시작
-   - MoveParaEnd → GetPos() → 문단 끝
-   - SetPos()로 원래 위치 복원
-
-3. 줄 범위 (GetLineRange)
-   - MoveDown으로 아래로 이동하며 줄 시작 pos 수집
-   - para가 바뀌거나 초기 pos보다 커지면 종료
-   - 현재 줄 끝 = 다음 줄 시작 - 1 (없으면 문단 끝)
-
-4. 문장 경계 (GetSentenceIndex)
-   - 문단 전체 선택 후 GetTextFile("TEXT", "saveblock")로 텍스트 획득
-   - Python에서 '.' 위치 찾아 문장 경계 계산
-   - '.' 후 3글자 이내 빈칸 아니면 새 문장 시작
-
-5. 폴링 모니터링
-   - 0.1초 간격으로 GetPos() 비교
-   - 위치 변경 시 콜백 호출
+주요 함수:
+1. get_current_pos(hwp) → 커서 위치 + 상태바 정보
+2. get_para_range(hwp) → 문단 시작/끝
+3. get_line_range(hwp) → 줄 시작/끝
+4. get_sentences(hwp) → 문장 경계 목록
+5. get_cursor_index(hwp) → 현재 커서의 문장/단어 인덱스
 """
 
 import time
@@ -47,46 +39,82 @@ def get_hwp_instance():
     return None
 
 
-def GetCurrentPos(hwp):
-    """현재 커서 위치 정보 반환 (GetPos + KeyIndicator)"""
-    result = {}
+def get_current_pos(hwp):
+    """
+    현재 커서 위치 정보 반환
+
+    Returns:
+        dict: {
+            'list_id': 리스트 ID,
+            'para_id': 문단 ID,
+            'char_pos': 문단 내 글자 위치,
+            'page': 페이지,
+            'line': 줄,
+            'column': 칸,
+            'insert_mode': '삽입' 또는 '수정'
+        }
+    """
     pos = hwp.GetPos()
-    result['list_id'] = pos[0]
-    result['para_id'] = pos[1]
-    result['char_pos'] = pos[2]
-
     key = hwp.KeyIndicator()
-    result['page'] = key[2]
-    result['line'] = key[4]
-    result['pos'] = key[5]
-    result['insert_mode'] = '수정' if key[6] else '삽입'
 
-    return result
+    return {
+        'list_id': pos[0],
+        'para_id': pos[1],
+        'char_pos': pos[2],
+        'page': key[2],
+        'line': key[4],
+        'column': key[5],
+        'insert_mode': '수정' if key[6] else '삽입'
+    }
 
 
-def GetParaRange(hwp):
-    """문단 시작/끝 pos 반환"""
+def get_para_range(hwp):
+    """
+    문단 시작/끝 pos 반환
+
+    Returns:
+        dict: {
+            'current': (list_id, para_id, char_pos),
+            'start': 문단 시작 pos,
+            'end': 문단 끝 pos
+        }
+    """
     current = hwp.GetPos()
     hwp.HAction.Run("MoveParaBegin")
-    para_start = hwp.GetPos()
+    start = hwp.GetPos()[2]
     hwp.HAction.Run("MoveParaEnd")
-    para_end = hwp.GetPos()
+    end = hwp.GetPos()[2]
     hwp.SetPos(current[0], current[1], current[2])
-    return {'current': current, 'para_start': para_start, 'para_end': para_end}
+
+    return {
+        'current': current,
+        'start': start,
+        'end': end
+    }
 
 
-def GetLineRange(hwp):
-    """현재 줄의 시작/끝 pos 반환"""
+def get_line_range(hwp):
+    """
+    현재 줄의 시작/끝 pos 반환
+
+    Returns:
+        dict: {
+            'current': (list_id, para_id, char_pos),
+            'start': 줄 시작 pos,
+            'end': 줄 끝 pos,
+            'line_starts': 문단 내 모든 줄 시작 pos 목록
+        }
+    """
     current = hwp.GetPos()
     init_para, init_pos = current[1], current[2]
 
     hwp.HAction.Run("MoveParaEnd")
-    para_end_pos = hwp.GetPos()[2]
+    para_end = hwp.GetPos()[2]
     hwp.HAction.Run("MoveParaBegin")
 
-    line_heads = [0]
-    current_line_head = 0
-    next_line_head = None
+    line_starts = [0]
+    current_line_start = 0
+    next_line_start = None
 
     while True:
         hwp.HAction.Run("MoveDown")
@@ -94,24 +122,36 @@ def GetLineRange(hwp):
         if pos[1] != init_para:
             break
         if pos[2] > init_pos:
-            next_line_head = pos[2]
+            next_line_start = pos[2]
             break
-        line_heads.append(pos[2])
-        current_line_head = pos[2]
+        line_starts.append(pos[2])
+        current_line_start = pos[2]
 
-    line_tail_pos = next_line_head - 1 if next_line_head else para_end_pos
+    line_end = next_line_start - 1 if next_line_start else para_end
     hwp.SetPos(current[0], current[1], current[2])
 
     return {
-        'current_pos': current,
-        'line_head_pos': current_line_head,
-        'line_tail_pos': line_tail_pos,
-        'all_line_heads': line_heads
+        'current': current,
+        'start': current_line_start,
+        'end': line_end,
+        'line_starts': line_starts
     }
 
 
-def GetSentenceIndex(hwp, return_text=False):
-    """문단 내 문장 경계 반환 ('.' 기준)"""
+def get_sentences(hwp, include_text=False):
+    """
+    문단 내 문장 경계 반환 ('.' 기준)
+
+    Args:
+        hwp: 한글 인스턴스
+        include_text: True면 문단 텍스트도 함께 반환
+
+    Returns:
+        include_text=False:
+            list: [{'index': 1, 'start': 0, 'end': 15}, ...]
+        include_text=True:
+            tuple: (sentences_list, para_text)
+    """
     current = hwp.GetPos()
 
     hwp.HAction.Run("MoveParaBegin")
@@ -125,7 +165,7 @@ def GetSentenceIndex(hwp, return_text=False):
     hwp.SetPos(current[0], current[1], current[2])
 
     if para_text is None or not para_text.strip():
-        return ([], "") if return_text else []
+        return ([], "") if include_text else []
 
     para_text = para_text.replace('\r\n', '').replace('\r', '').replace('\n', '')
 
@@ -136,7 +176,7 @@ def GetSentenceIndex(hwp, return_text=False):
 
     while i < len(para_text):
         if para_text[i] == '.':
-            sentences.append({'index': sentence_index, 'start_pos': sentence_start, 'end_pos': i})
+            sentences.append({'index': sentence_index, 'start': sentence_start, 'end': i})
 
             next_start = i + 1
             skip_count = 0
@@ -156,15 +196,15 @@ def GetSentenceIndex(hwp, return_text=False):
         else:
             i += 1
 
-    if sentence_start < len(para_text) and (not sentences or sentences[-1]['end_pos'] < len(para_text) - 1):
-        sentences.append({'index': sentence_index, 'start_pos': sentence_start, 'end_pos': len(para_text) - 1})
+    if sentence_start < len(para_text) and (not sentences or sentences[-1]['end'] < len(para_text) - 1):
+        sentences.append({'index': sentence_index, 'start': sentence_start, 'end': len(para_text) - 1})
 
-    return (sentences, para_text) if return_text else sentences
+    return (sentences, para_text) if include_text else sentences
 
 
-def GetTextIndex(hwp, pos=None):
+def get_cursor_index(hwp, pos=None):
     """
-    주어진 pos가 몇 번째 문장의 몇 번째 단어인지 반환
+    현재 커서가 몇 번째 문장의 몇 번째 단어인지 반환
 
     Args:
         hwp: 한글 인스턴스
@@ -173,53 +213,59 @@ def GetTextIndex(hwp, pos=None):
     Returns:
         dict: {
             'sentence_index': 문장 번호 (1부터),
-            'word_index': 문장 내 단어 번호 (0부터),
+            'word_index': 단어 번호 (0부터),
             'sentence_start': 문장 시작 pos,
             'sentence_end': 문장 끝 pos
         }
+        또는 None (위치를 찾을 수 없는 경우)
     """
     if pos is None:
         pos = hwp.GetPos()[2]
 
-    # 문장 목록과 텍스트를 한 번에 가져오기 (블록 1회만 사용)
-    sentences, para_text = GetSentenceIndex(hwp, return_text=True)
+    sentences, para_text = get_sentences(hwp, include_text=True)
     if not sentences or not para_text:
         return None
 
-    # pos가 어느 문장에 속하는지 찾기
+    # pos가 속한 문장 찾기
     current_sentence = None
     for s in sentences:
-        if s['start_pos'] <= pos <= s['end_pos']:
+        if s['start'] <= pos <= s['end']:
             current_sentence = s
             break
 
     if current_sentence is None:
         return None
 
-    # 문장 내에서 단어 인덱스 계산
-    # 문장 시작부터 pos까지 공백 개수 세기
+    # 문장 시작부터 pos까지 공백 개수 = 단어 인덱스
     word_index = 0
-    for i in range(current_sentence['start_pos'], pos):
+    for i in range(current_sentence['start'], pos):
         if i < len(para_text) and para_text[i] == ' ':
             word_index += 1
 
     return {
         'sentence_index': current_sentence['index'],
         'word_index': word_index,
-        'sentence_start': current_sentence['start_pos'],
-        'sentence_end': current_sentence['end_pos']
+        'sentence_start': current_sentence['start'],
+        'sentence_end': current_sentence['end']
     }
 
 
-def position_monitor_loop(hwp, interval=0.1, callback=None):
-    """폴링 방식 커서 위치 모니터링"""
+def monitor_position(hwp, interval=0.1, callback=None):
+    """
+    폴링 방식 커서 위치 모니터링
+
+    Args:
+        hwp: 한글 인스턴스
+        interval: 폴링 간격 (초)
+        callback: 위치 변경 시 호출할 함수 (pos_info를 인자로 받음)
+    """
     last_pos = None
     while True:
         try:
             pos = hwp.GetPos()
             current_key = (pos[0], pos[1], pos[2])
             if current_key != last_pos:
-                current = GetCurrentPos(hwp)
+                current = get_current_pos(hwp)
                 if callback:
                     callback(current)
                 else:
@@ -237,16 +283,16 @@ if __name__ == "__main__":
     hwp.Open(r"d:\hwp_docs\test.hwp", "HWP", "forceopen:true")
     hwp.EditMode = 1
 
-    print("텍스트 인덱스 테스트\n")
+    print("커서 인덱스 테스트\n")
     last_pos = None
     while True:
         try:
             pos = hwp.GetPos()
             current_key = (pos[0], pos[1], pos[2])
             if current_key != last_pos:
-                result = GetTextIndex(hwp)
+                result = get_cursor_index(hwp)
                 if result:
-                    print(f"문장 {result['sentence_index']} / 단어 {result['word_index']} | 문장범위: {result['sentence_start']}~{result['sentence_end']}")
+                    print(f"문장 {result['sentence_index']} / 단어 {result['word_index']} | 범위: {result['sentence_start']}~{result['sentence_end']}")
                 else:
                     print("위치 없음")
                 last_pos = current_key
