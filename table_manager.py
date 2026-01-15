@@ -284,17 +284,12 @@ class TableManager:
         saved = self._save_pos()
 
         try:
-            # 표 위치로 이동 후 진입
+            # 표 위치로 이동
             anchor = table_ctrl.GetAnchorPos(0)
             self.hwp.SetPos(0, anchor.Item("Para"), anchor.Item("Pos"))
 
-            # 표 안으로 진입
-            self.hwp.HAction.Run("ShapeObjTableSelCell")
-
-            # 표의 첫 셀(1,1)로 이동
-            # moveStartOfCell(104) = 행의 시작, moveTopOfCell(106) = 열의 시작
-            self.hwp.MovePos(104)  # 행의 시작 (첫 열로)
-            self.hwp.MovePos(106)  # 열의 시작 (첫 행으로)
+            # 표 안으로 진입 (MoveRight로 첫 셀 진입)
+            self.hwp.HAction.Run("MoveRight")
 
             # 지정된 행으로 이동
             for _ in range(row):
