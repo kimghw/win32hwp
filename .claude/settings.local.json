@@ -1,6 +1,23 @@
 {
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -Command \"$logDir = 'd:\\hwp_docs\\debugs\\logs'; if (Test-Path $logDir) { $files = Get-ChildItem $logDir -Filter '*.txt' | Where-Object { $_.LastWriteTime -gt (Get-Date).AddMinutes(-5) } | Sort-Object LastWriteTime -Descending | Select-Object -First 3; if ($files) { Write-Output '=== 최근 5분 내 로그 파일 ==='; $files | ForEach-Object { Write-Output $_.FullName } } }\""
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
+      "Bash(powershell.exe:*)",
+      "Bash(powershell:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(cmd:*)",
       "Bash(python:*)",
       "Bash(dir /s /b \"C:\\\\hwp_docs\\\\win32\\\\*.md\")",
       "Bash(cmd /c \"dir /s /b C:\\\\hwp_docs\\\\win32\\\\*.md 2>nul\")",
@@ -48,7 +65,10 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\nHWP 커서 위치 모니터링 및 문장 경계 탐지 기능 추가\n\n- GetCurrentPos: 커서 위치 정보 반환\n- GetParaRange: 문단 시작/끝 pos 반환\n- GetLineRange: 줄 시작/끝 pos 반환\n- GetSentenceIndex: 문단 내 문장 경계 탐지 \\(''.'' 기준\\)\n- 폴링 방식 모니터링 루프 포함\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git config:*)",
       "Bash(git push:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nHWP 자동화 프로젝트 전체 파일 추가\n\n- win32/: HWP API 문서 \\(ActionTable, ParameterSetTable, HwpAutomation\\)\n- pos_monitor.py: 이벤트 기반 커서 모니터링\n- check_events.py, create_hwp.py: 테스트 스크립트\n- test.hwp, red_text.hwp: 테스트 문서\n- HWP_API_에러정리.md, HWP_표_API_정리.md: API 정리 문서\n- 보안모듈_Automation.zip: 보안 모듈\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)",
+      "Bash(git pull:*)"
     ]
   }
 }
