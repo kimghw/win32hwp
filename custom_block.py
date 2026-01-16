@@ -50,7 +50,7 @@ class CustomBlock:
 
         line_starts = [0]
         while True:
-            self.hwp.HAction.Run("MoveDown")
+            self.hwp.HAction.Run("MoveLineDown")
             pos = self.hwp.GetPos()
             if pos[1] != para_id:
                 break

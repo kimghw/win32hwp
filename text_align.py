@@ -322,10 +322,10 @@ class TextAlign:
         if first_space_idx == -1:
             return False
 
-        # 공백이 위치 0 또는 1에 있으면 정렬 대상
-        # 위치 0: "적 과정..." (1글자 + 공백)
-        # 위치 1: "며, 제원..." (2글자 + 공백)
-        return first_space_idx in [0, 1]
+        # 공백이 위치 1 또는 2에 있으면 정렬 대상
+        # 위치 1: "적 과정..." (1글자 + 공백)
+        # 위치 2: "며, 제원..." (2글자 + 공백)
+        return first_space_idx in [1, 2]
 
     def _line_ends_with_space(self, text: str) -> bool:
         """줄이 공백으로 끝나는지 확인"""

@@ -117,7 +117,7 @@ def get_line_range(hwp):
     next_line_start = None
 
     while True:
-        hwp.HAction.Run("MoveDown")
+        hwp.HAction.Run("MoveLineDown")
         pos = hwp.GetPos()
         if pos[1] != init_para:
             break
