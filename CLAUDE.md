@@ -1,5 +1,69 @@
 # 한글(HWP) 자동화 프로젝트 규칙
 
+## 프로젝트 구조
+
+```
+hwp_docs/
+├── separated_word.py      # 분리된 단어 처리 (SeparatedWord)
+├── separated_para.py      # 분리된 문단 처리 (SeparatedPara)
+├── block_selector.py      # 블록 선택 유틸리티 (BlockSelector)
+├── cursor_utils.py        # 커서 유틸리티 함수
+├── style_format.py        # 서식 관리 (StyleFormat)
+├── table_manager.py       # 테이블 관리 (TableManager)
+└── debugs/logs/           # 디버그 로그
+```
+
+## 핵심 모듈
+
+### 1. separated_word.py - 분리된 단어 처리
+
+한 단어가 두 줄에 걸쳐 분리된 경우 자간을 줄여서 한 줄로 합침
+
+```python
+from separated_word import SeparatedWord
+from cursor_utils import get_hwp_instance
+
+hwp = get_hwp_instance()
+fixer = SeparatedWord(hwp, debug=True)
+result = fixer.fix_paragraph()  # 현재 문단 처리
+```
+
+**독립 실행:** `python separated_word.py`
+
+| 메서드 | 설명 |
+|--------|------|
+| `fix_paragraph()` | 현재 문단의 분리된 단어 처리 |
+| `_adjust_spacing()` | 자간 조정 |
+
+### 2. separated_para.py - 분리된 문단 처리
+
+문단이 두 페이지에 걸쳐있을 때 한 페이지로 맞춤
+
+```python
+from separated_para import SeparatedPara
+from cursor_utils import get_hwp_instance
+
+hwp = get_hwp_instance()
+fixer = SeparatedPara(hwp)
+result = fixer.fix_page(page=1)  # 1페이지 처리
+```
+
+**독립 실행:** `python separated_para.py`
+
+| 메서드 | 설명 |
+|--------|------|
+| `fix_page(page)` | 페이지의 분리된 문단 처리 (메인) |
+| `fix_paragraph(para_id)` | 단일 문단 처리 |
+| `fix_all_paragraphs(page)` | 모든 걸친 문단 처리 |
+| `get_spanning_lines(para_id)` | 걸친 문단 줄 분석 |
+| `remove_empty_line_at_page_start(page)` | 페이지 첫 빈줄 제거 |
+
+**처리 전략 우선순위:**
+1. `char_spacing_align` - 자간 줄이고 text_align (2회)
+2. `empty_font` - 빈 문단 글자 크기 줄이기
+
+---
+
 ## 참고 문서 (필수!)
 
 HWP API 관련 작업 시 **반드시** 아래 문서를 먼저 확인:
@@ -30,19 +94,11 @@ hwp.RegisterModule('FilePathCheckDLL', 'FilePathCheckerModuleExample')  # 필수
 이미 실행 중인 한글에 연결하려면 **Running Object Table(ROT)** 사용:
 
 ```python
-import pythoncom
-import win32com.client as win32
+from cursor_utils import get_hwp_instance
 
-def get_hwp_instance():
-    context = pythoncom.CreateBindCtx(0)
-    rot = pythoncom.GetRunningObjectTable()
-
-    for moniker in rot:
-        name = moniker.GetDisplayName(context, None)
-        if 'HwpObject' in name:
-            obj = rot.GetObject(moniker)
-            return win32.Dispatch(obj.QueryInterface(pythoncom.IID_IDispatch))
-    return None
+hwp = get_hwp_instance()
+if not hwp:
+    print("한글이 실행 중이 아닙니다")
 ```
 
 **ROT 방식의 특징:**
@@ -90,7 +146,7 @@ text = hwp.GetTextFile("TEXT", "saveblock")  # 선택 영역만
 hwp.HAction.Run("Cancel")  # 선택 해제
 ```
 
-## cursor_position_monitor.py 함수 요약
+## cursor_utils.py 함수 요약
 
 | 함수 | 인자 | 반환값 |
 |------|------|--------|
@@ -100,9 +156,8 @@ hwp.HAction.Run("Cancel")  # 선택 해제
 | `get_line_range(hwp)` | hwp | `{current: (l,p,c), start: int, end: int, line_starts: []}` |
 | `get_sentences(hwp, include_text=False)` | hwp, bool | `[{index, start, end}, ...]` 또는 `(list, text)` |
 | `get_cursor_index(hwp, pos=None)` | hwp, int/None | `{sentence_index, word_index, sentence_start, sentence_end}` |
-| `monitor_position(hwp, interval=0.1, callback=None)` | hwp, float, func | 없음 (폴링 루프) |
 
-## custom_block.py - CustomBlock 클래스
+## block_selector.py - BlockSelector 클래스
 
 블록(범위) 선택 전용 클래스. HWP pos와 텍스트 인덱스가 다름에 주의 (한글=pos 2, 영문/공백=pos 1).
 
@@ -113,18 +168,18 @@ hwp.HAction.Run("Cancel")  # 선택 해제
 | `select_para(para_id)` | 문단ID | 문단 전체 선택 |
 | `select_line_by_index(para_id, line_index)` | 문단ID, 줄번호(0~) | n번째 줄 선택 |
 | `select_line_by_pos(para_id, pos)` | 문단ID, pos | pos가 속한 줄 선택 |
-| `select_lines_range(para_id, start, end)` | 문단ID, 시작줄, 끝줄 | n~m번째 줄 선택 (없으면 끝까지) |
+| `select_lines_range(para_id, start, end)` | 문단ID, 시작줄, 끝줄 | n~m번째 줄 선택 |
 | `select_sentence(para_id, sentence_index)` | 문단ID, 문장번호(1~) | n번째 문장 선택 |
-| `select_sentences_range(para_id, start, end)` | 문단ID, 시작, 끝 | n~m번째 문장 선택 (없으면 끝까지) |
-| `select_sentence_in_line(para_id, pos)` | 문단ID, pos | pos가 속한 문장 선택 (줄 넘김 X) |
+| `select_sentences_range(para_id, start, end)` | 문단ID, 시작, 끝 | n~m번째 문장 선택 |
+| `select_sentence_in_line(para_id, pos)` | 문단ID, pos | pos가 속한 문장 선택 |
 | `cancel()` | 없음 | 블록 선택 해제 |
 | `get_selected_text()` | 없음 | 선택된 텍스트 반환 |
 
 ### 사용 예시
 ```python
-from custom_block import CustomBlock
+from block_selector import BlockSelector
 
-block = CustomBlock(hwp)
+block = BlockSelector(hwp)
 pos = hwp.GetPos()
 para_id = pos[1]
 
@@ -142,3 +197,26 @@ block.cancel()
 ### 위치 정보 읽을 때
 - 문단/줄 범위를 알려면 커서를 이동해야 함
 - 이동 후 반드시 원래 위치로 복원: `hwp.SetPos(list, para, pos)`
+
+## 모듈 마이그레이션 가이드
+
+| 기존 | 새 이름 |
+|------|---------|
+| `text_align.py` / `TextAlign` | `separated_word.py` / `SeparatedWord` |
+| `text_align_page.py` / `TextAlignPage` | `separated_para.py` / `SeparatedPara` |
+| `custom_block.py` / `CustomBlock` | `block_selector.py` / `BlockSelector` |
+| `cursor_position_monitor.py` | `cursor_utils.py` |
+
+```python
+# 기존 import
+from text_align import TextAlign
+from text_align_page import TextAlignPage
+from custom_block import CustomBlock
+from cursor_position_monitor import get_hwp_instance
+
+# 새 import
+from separated_word import SeparatedWord
+from separated_para import SeparatedPara
+from block_selector import BlockSelector
+from cursor_utils import get_hwp_instance
+```

@@ -1,13 +1,11 @@
 """
-HWP 페이지/문단 정보 추출 모듈
-
-현재 페이지의 문단 정보를 수집합니다.
+분리된 문단 처리 - 문단이 두 페이지에 걸쳐있을 때 한 페이지로 맞춤
 
 사용법:
-    from text_align_page import TextAlignPage, get_hwp_instance
+    from separated_para import SeparatedPara, get_hwp_instance
 
     hwp = get_hwp_instance()
-    helper = TextAlignPage(hwp)
+    helper = SeparatedPara(hwp)
 
     # 현재 페이지 문단 정보
     result = helper.get_page_paragraph_count()
@@ -19,12 +17,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Tuple
 
-from cursor_position_monitor import get_hwp_instance
-from text_align import TextAlign
+from cursor_utils import get_hwp_instance
+from separated_word import SeparatedWord
 
 
-class TextAlignPage:
-    """HWP 페이지/문단 정보 추출 클래스"""
+class SeparatedPara:
+    """분리된 문단 처리 클래스 - 페이지 걸침 문단 해소"""
 
     # 클래스 변수: 문단-페이지 매핑 저장소
     para_page_map = {}  # {para_id: {'start_page': int, 'end_page': int, 'is_empty': bool}}
@@ -50,7 +48,7 @@ class TextAlignPage:
             }
         """
         saved_pos = self.hwp.GetPos()
-        TextAlignPage.para_page_map = {}
+        SeparatedPara.para_page_map = {}
 
         try:
             # 문서 처음으로 이동
@@ -63,7 +61,7 @@ class TextAlignPage:
                 is_empty = self._is_empty_paragraph()
 
                 # 클래스 변수에 저장
-                TextAlignPage.para_page_map[para_id] = {
+                SeparatedPara.para_page_map[para_id] = {
                     'start_page': start_page,
                     'end_page': end_page,
                     'is_empty': is_empty
@@ -80,11 +78,11 @@ class TextAlignPage:
             # 원래 위치 복원
             self.hwp.SetPos(saved_pos[0], saved_pos[1], saved_pos[2])
 
-            return TextAlignPage.para_page_map
+            return SeparatedPara.para_page_map
 
         except Exception as e:
             self.hwp.SetPos(saved_pos[0], saved_pos[1], saved_pos[2])
-            return TextAlignPage.para_page_map
+            return SeparatedPara.para_page_map
 
     def _is_empty_paragraph(self) -> bool:
         """현재 문단이 빈 문단인지 확인"""
@@ -203,10 +201,10 @@ class TextAlignPage:
                 'error': str(e)
             }
 
-    def align_paragraph(self, para_id: int, spacing_step: float = -1.0,
+    def fix_word_in_paragraph(self, para_id: int, spacing_step: float = -1.0,
                         min_spacing: float = -100, max_iterations: int = 100) -> Dict:
         """
-        특정 문단으로 이동해서 text_align 실행
+        특정 문단으로 이동해서 분리단어 처리 실행
 
         Args:
             para_id: 문단 ID
@@ -215,7 +213,7 @@ class TextAlignPage:
             max_iterations: 최대 반복 횟수
 
         Returns:
-            text_align.align_paragraph() 결과
+            SeparatedWord.align_paragraph() 결과
         """
         saved_pos = self.hwp.GetPos()
 
@@ -224,8 +222,8 @@ class TextAlignPage:
         self.hwp.SetPos(list_id, para_id, 0)
         self.hwp.HAction.Run("MoveParaBegin")
 
-        # text_align 실행
-        align = TextAlign(self.hwp, debug=False)
+        # 분리단어 처리 실행
+        align = SeparatedWord(self.hwp, debug=False)
         result = align.align_paragraph(
             spacing_step=spacing_step,
             min_spacing=min_spacing,
@@ -249,13 +247,13 @@ class TextAlignPage:
 
         # 해당 페이지의 문단 필터링
         result = []
-        for para_id, info in TextAlignPage.para_page_map.items():
+        for para_id, info in SeparatedPara.para_page_map.items():
             if info['start_page'] == page:
                 result.append(para_id)
 
         return result
 
-    def fit_spanning_paragraph(self, para_id: int, min_font_size: int = 4) -> Dict:
+    def fix_paragraph(self, para_id: int, min_font_size: int = 4) -> Dict:
         """
         페이지 걸친 문단 앞의 빈 문단 글자 크기를 줄여서 공간 확보
 
@@ -299,7 +297,7 @@ class TextAlignPage:
 
         # 같은 페이지(start_page)에 있는 빈 문단 찾기
         empty_paras = []
-        for pid, info in TextAlignPage.para_page_map.items():
+        for pid, info in SeparatedPara.para_page_map.items():
             if info.get('is_empty', False) and info['start_page'] == start_page:
                 if pid < para_id:  # 걸친 문단보다 앞에 있는 빈 문단만
                     empty_paras.append(pid)
@@ -380,7 +378,7 @@ class TextAlignPage:
             'total_reduction': total_reduction
         }
 
-    def fit_all_spanning_paragraphs(self, page: int = None, min_font_size: int = 4,
+    def fix_all_paragraphs(self, page: int = None, min_font_size: int = 4,
                                       max_rounds: int = 50) -> Dict:
         """
         걸친 문단이 없을 때까지 반복 처리
@@ -415,7 +413,7 @@ class TextAlignPage:
 
             # 페이지 걸친 문단 찾기 (실패한 것 제외)
             spanning_paras = []
-            for para_id, info in TextAlignPage.para_page_map.items():
+            for para_id, info in SeparatedPara.para_page_map.items():
                 if info['start_page'] != info['end_page'] and not info.get('is_empty', False):
                     if page is None or info['start_page'] == page:
                         if para_id not in failed_paras:
@@ -427,7 +425,7 @@ class TextAlignPage:
 
             # 첫 번째 걸친 문단 처리
             para_id = spanning_paras[0]
-            result = self.fit_spanning_paragraph(para_id, min_font_size)
+            result = self.fix_paragraph(para_id, min_font_size)
             processed += 1
             results.append(result)
 
@@ -440,7 +438,7 @@ class TextAlignPage:
         # 최종 상태 확인
         self.ParaAlignWords()
         remaining = 0
-        for para_id, info in TextAlignPage.para_page_map.items():
+        for para_id, info in SeparatedPara.para_page_map.items():
             if info['start_page'] != info['end_page'] and not info.get('is_empty', False):
                 if page is None or info['start_page'] == page:
                     remaining += 1
@@ -454,10 +452,10 @@ class TextAlignPage:
             'results': results
         }
 
-    def align_page(self, page: int, spacing_step: float = -1.0,
+    def fix_all_words_in_page(self, page: int, spacing_step: float = -1.0,
                    min_spacing: float = -100, max_iterations: int = 100) -> Dict:
         """
-        페이지의 모든 문단에 대해 text_align 실행
+        페이지의 모든 문단에 대해 분리단어 처리 실행
 
         Args:
             page: 페이지 번호
@@ -483,10 +481,10 @@ class TextAlignPage:
         total_failed = 0
         results = []
 
-        # 각 문단에 대해 align_paragraph 실행
+        # 각 문단에 대해 fix_word_in_paragraph 실행
         for para_id in para_ids:
             # 빈 문단 스킵
-            para_info = TextAlignPage.para_page_map.get(para_id, {})
+            para_info = SeparatedPara.para_page_map.get(para_id, {})
             if para_info.get('is_empty', False):
                 results.append({
                     'para_id': para_id,
@@ -497,7 +495,7 @@ class TextAlignPage:
                 })
                 continue
 
-            result = self.align_paragraph(
+            result = self.fix_word_in_paragraph(
                 para_id,
                 spacing_step=spacing_step,
                 min_spacing=min_spacing,
@@ -607,7 +605,7 @@ class TextAlignPage:
 
         # 해당 페이지에서 시작하는 문단 중 마지막 문단 찾기
         last_para_id = None
-        for para_id, info in TextAlignPage.para_page_map.items():
+        for para_id, info in SeparatedPara.para_page_map.items():
             if info['start_page'] == page:
                 if last_para_id is None or para_id > last_para_id:
                     last_para_id = para_id
@@ -620,7 +618,7 @@ class TextAlignPage:
             }
 
         # 마지막 문단의 정보 확인
-        para_info = TextAlignPage.para_page_map[last_para_id]
+        para_info = SeparatedPara.para_page_map[last_para_id]
 
         if para_info['start_page'] == para_info['end_page']:
             return {
@@ -658,7 +656,7 @@ class TextAlignPage:
 
         # 같은 페이지의 빈 문단 찾기 (걸친 문단보다 앞)
         empty_paras = []
-        for pid, info in TextAlignPage.para_page_map.items():
+        for pid, info in SeparatedPara.para_page_map.items():
             if info.get('is_empty', False) and info['start_page'] == page:
                 if pid < para_id:
                     empty_paras.append(pid)
@@ -783,10 +781,10 @@ class TextAlignPage:
 
     def try_char_spacing_align(self, para_id: int, max_attempts: int = 2) -> Dict:
         """
-        글자 간격을 줄이고 text_align 적용 (우선 전략)
+        글자 간격을 줄이고 분리단어 처리 적용 (우선 전략)
 
         마지막 줄의 남은 글자 수가 (줄 수 * 2 + 1)보다 작으면
-        글자 간격을 1 줄이고 text_align을 적용. 최대 2회 반복.
+        글자 간격을 1 줄이고 분리단어 처리를 적용. 최대 2회 반복.
 
         Args:
             para_id: 문단 ID
@@ -835,8 +833,8 @@ class TextAlignPage:
             self.hwp.HAction.Execute("CharShape", pset.HSet)
             self.hwp.HAction.Run("Cancel")
 
-            # text_align 적용
-            self.align_paragraph(para_id)
+            # 분리단어 처리 적용
+            self.fix_word_in_paragraph(para_id)
 
             # 걸침 해소 확인
             start_page, end_page = self._get_para_page_range(para_id)
@@ -875,7 +873,7 @@ class TextAlignPage:
 
         # 해당 페이지에서 시작하는 첫 번째 문단 찾기
         first_para_id = None
-        for para_id, info in sorted(TextAlignPage.para_page_map.items()):
+        for para_id, info in sorted(SeparatedPara.para_page_map.items()):
             if info['start_page'] == page:
                 first_para_id = para_id
                 break
@@ -889,7 +887,7 @@ class TextAlignPage:
             }
 
         # 첫 번째 문단이 빈 문단인지 확인
-        para_info = TextAlignPage.para_page_map.get(first_para_id, {})
+        para_info = SeparatedPara.para_page_map.get(first_para_id, {})
 
         if not para_info.get('is_empty', False):
             self.hwp.SetPos(saved_pos[0], saved_pos[1], saved_pos[2])
@@ -915,13 +913,13 @@ class TextAlignPage:
             'message': f'빈 문단 para_id={first_para_id} 삭제됨'
         }
 
-    def fit_page_spanning(self, page: int, max_iterations: int = 50,
+    def fix_page(self, page: int, max_iterations: int = 50,
                           strategy: str = 'empty_font', log_callback=None) -> Dict:
         """
         페이지 걸친 문단 처리 (메인 함수)
 
         전략 우선순위:
-        1. char_spacing_align: 남은 글자가 적으면 자간 줄이고 text_align (2회)
+        1. char_spacing_align: 남은 글자가 적으면 자간 줄이고 분리단어 처리 (2회)
         2. empty_font: 빈 문단 글자 크기 줄이기
         3. line_spacing: 줄 간격 줄이기 (미구현)
         4. font_size: 문단 글자 크기 줄이기 (미구현)
@@ -947,7 +945,7 @@ class TextAlignPage:
 
         # 1. para_page_map 조회
         self.ParaAlignWords()
-        log(f"[1] para_page_map 조회 완료: {len(TextAlignPage.para_page_map)}개 문단")
+        log(f"[1] para_page_map 조회 완료: {len(SeparatedPara.para_page_map)}개 문단")
 
         # 2. 페이지 마지막 걸친 문단 확인
         spanning_info = self.get_page_last_spanning_para(page)
@@ -970,7 +968,7 @@ class TextAlignPage:
         spacing_result = self.try_char_spacing_align(para_id, max_attempts=2)
 
         if spacing_result['applied']:
-            log(f"    자간+text_align 적용: {spacing_result['attempts']}회 시도, 성공={spacing_result['success']}")
+            log(f"    자간+분리단어처리 적용: {spacing_result['attempts']}회 시도, 성공={spacing_result['success']}")
 
             if spacing_result['success']:
                 # 다음 페이지 첫 줄 빈 문단 제거
@@ -1048,7 +1046,7 @@ class TextAlignPage:
 
 
 # ============================================================
-# 페이지 걸침 문단 처리 전략 (fit_page_spanning 함수)
+# 페이지 걸침 문단 처리 전략 (fix_page 함수)
 # ============================================================
 #
 # 처리 순서:
@@ -1060,7 +1058,7 @@ class TextAlignPage:
 # ----------------------------------------------------------
 # [우선 전략] char_spacing_align (try_char_spacing_align)
 #   - 조건: 다음 페이지에 있는 글자 수 < (전체 줄 수 * 2 + 1)
-#   - 동작: 문단 전체 자간을 1 줄이고 text_align 적용
+#   - 동작: 문단 전체 자간을 1 줄이고 분리단어 처리 적용
 #   - 반복: 최대 2회
 #   - 함수: get_last_line_remaining_chars(), try_char_spacing_align()
 #
@@ -1083,32 +1081,16 @@ class TextAlignPage:
 # - get_spanning_lines(para_id): 문단의 페이지별 줄 수 분석
 # - get_page_last_spanning_para(page): 페이지 마지막 걸친 문단 확인
 # - remove_empty_line_at_page_start(page): 페이지 첫 빈줄 제거
-# - fit_page_spanning(page, strategy): 메인 처리 함수
+# - fix_page(page, strategy): 메인 처리 함수
 # ============================================================
 
 
-
-
-
-
-
-
-
-
-
-
-
 def main():
-    """CLI 실행 함수"""
-    import argparse
-
-    parser = argparse.ArgumentParser(description='HWP 페이지/문단 정보 추출')
-    parser.add_argument('--page', type=int, default=None,
-                       help='대상 페이지 번호 (기본: 현재 페이지)')
-    parser.add_argument('--all', action='store_true',
-                       help='전체 문단-페이지 매핑 (ParaAlignWords)')
-
-    args = parser.parse_args()
+    """독립 실행 함수"""
+    print("=" * 60)
+    print("SeparatedPara - 분리된 문단 처리")
+    print("문단이 두 페이지에 걸쳐있을 때 한 페이지로 맞춤")
+    print("=" * 60)
 
     # HWP 인스턴스 연결
     hwp = get_hwp_instance()
@@ -1118,30 +1100,35 @@ def main():
 
     print("[OK] 한글에 연결되었습니다.")
 
-    helper = TextAlignPage(hwp)
+    helper = SeparatedPara(hwp)
 
-    # --all: 전체 문단-페이지 매핑
-    if args.all:
-        para_map = helper.ParaAlignWords()
-        print(f"\n전체 문단 수: {len(para_map)}개")
-        print("-" * 50)
-        for para_id, info in para_map.items():
-            span = " (걸침)" if info['start_page'] != info['end_page'] else ""
-            print(f"  para_id={para_id}, page={info['start_page']}~{info['end_page']}{span}")
-        return
+    # 현재 페이지 확인
+    key_info = hwp.KeyIndicator()
+    current_page = key_info[3]
+    print(f"\n현재 페이지: {current_page}")
 
-    # 기본: 특정 페이지 문단 조회
-    result = helper.get_page_paragraph_count(args.page)
-
-    print(f"\n페이지 {result['page']}: {result['paragraph_count']}개 문단")
+    # 현재 페이지 처리 실행
+    print(f"\n[실행] 페이지 {current_page} 걸침 문단 처리...")
     print("-" * 50)
 
-    for i, p in enumerate(result['paragraphs'], 1):
-        span = " (걸침)" if p['start_page'] != p['end_page'] else ""
-        print(f"  {i}. para_id={p['para_id']}, page={p['start_page']}~{p['end_page']}{span}")
+    def log_callback(msg):
+        print(msg)
+
+    result = helper.fix_page(current_page, log_callback=log_callback)
+
+    # 결과 출력
+    print("-" * 50)
+    print(f"\n[결과]")
+    print(f"  성공 여부: {result.get('success', False)}")
+    print(f"  반복 횟수: {result.get('iterations', 0)}")
+    print(f"  대상 문단: para_id={result.get('para_id', 'N/A')}")
+    if 'strategy_used' in result:
+        print(f"  사용 전략: {result['strategy_used']}")
+    if 'empty_line_removed' in result:
+        print(f"  빈줄 제거: {result['empty_line_removed']}")
+    if 'message' in result:
+        print(f"  메시지: {result['message']}")
 
 
 if __name__ == '__main__':
     main()
-
-
