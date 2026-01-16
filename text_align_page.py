@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Dict, Tuple
 
 from cursor_position_monitor import get_hwp_instance
+from text_align import TextAlign
 
 
 class TextAlignPage:
@@ -186,6 +187,116 @@ class TextAlignPage:
                 'paragraphs': [],
                 'error': str(e)
             }
+
+    def align_paragraph(self, para_id: int, spacing_step: float = -1.0,
+                        min_spacing: float = -100, max_iterations: int = 100) -> Dict:
+        """
+        특정 문단으로 이동해서 text_align 실행
+
+        Args:
+            para_id: 문단 ID
+            spacing_step: 자간 감소 단위
+            min_spacing: 최소 자간 값
+            max_iterations: 최대 반복 횟수
+
+        Returns:
+            text_align.align_paragraph() 결과
+        """
+        saved_pos = self.hwp.GetPos()
+
+        # 해당 문단으로 이동
+        list_id = saved_pos[0]
+        self.hwp.SetPos(list_id, para_id, 0)
+        self.hwp.HAction.Run("MoveParaBegin")
+
+        # text_align 실행
+        align = TextAlign(self.hwp, debug=False)
+        result = align.align_paragraph(
+            spacing_step=spacing_step,
+            min_spacing=min_spacing,
+            max_iterations=max_iterations
+        )
+
+        return result
+
+    def get_page_paragraphs(self, page: int) -> list:
+        """
+        페이지에 해당하는 문단 목록 반환 (para_page_map 최신 업데이트)
+
+        Args:
+            page: 페이지 번호
+
+        Returns:
+            [para_id, para_id, ...] 해당 페이지에서 시작하는 문단 ID 목록
+        """
+        # para_page_map 최신 업데이트
+        self.ParaAlignWords()
+
+        # 해당 페이지의 문단 필터링
+        result = []
+        for para_id, info in TextAlignPage.para_page_map.items():
+            if info['start_page'] == page:
+                result.append(para_id)
+
+        return result
+
+    def align_page(self, page: int, spacing_step: float = -1.0,
+                   min_spacing: float = -100, max_iterations: int = 100) -> Dict:
+        """
+        페이지의 모든 문단에 대해 text_align 실행
+
+        Args:
+            page: 페이지 번호
+            spacing_step: 자간 감소 단위
+            min_spacing: 최소 자간 값
+            max_iterations: 문단당 최대 반복 횟수
+
+        Returns:
+            {
+                'page': int,
+                'total_paragraphs': int,
+                'total_adjusted': int,
+                'total_skipped': int,
+                'total_failed': int,
+                'results': [...]
+            }
+        """
+        # 페이지의 문단 목록 가져오기
+        para_ids = self.get_page_paragraphs(page)
+
+        total_adjusted = 0
+        total_skipped = 0
+        total_failed = 0
+        results = []
+
+        # 각 문단에 대해 align_paragraph 실행
+        for para_id in para_ids:
+            result = self.align_paragraph(
+                para_id,
+                spacing_step=spacing_step,
+                min_spacing=min_spacing,
+                max_iterations=max_iterations
+            )
+
+            total_adjusted += result.get('adjusted_lines', 0)
+            total_skipped += result.get('skipped_lines', 0)
+            total_failed += result.get('failed_lines', 0)
+
+            results.append({
+                'para_id': para_id,
+                'adjusted': result.get('adjusted_lines', 0),
+                'skipped': result.get('skipped_lines', 0),
+                'failed': result.get('failed_lines', 0)
+            })
+
+        return {
+            'page': page,
+            'total_paragraphs': len(para_ids),
+            'total_adjusted': total_adjusted,
+            'total_skipped': total_skipped,
+            'total_failed': total_failed,
+            'results': results
+        }
 
 
 def main():
