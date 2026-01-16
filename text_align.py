@@ -18,11 +18,23 @@ HWP 텍스트 정렬 모듈
 import time
 import re
 import json
+import traceback
+import sys
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from custom_block import CustomBlock
 from cursor_position_monitor import get_hwp_instance
+
+# 모듈 실행 정보 로그
+_MODULE_INFO = {
+    'file': os.path.abspath(__file__),
+    'name': __name__,
+    'loaded_at': datetime.now().isoformat()
+}
+print(f"[MODULE LOAD] {_MODULE_INFO['file']}")
+print(f"[MODULE LOAD] __name__={_MODULE_INFO['name']}, loaded_at={_MODULE_INFO['loaded_at']}")
 
 
 class TextAlign:
@@ -49,6 +61,19 @@ class TextAlign:
         # 파라미터 정보 저장
         self.current_params = None
 
+        # 커서 이력 추적
+        self.cursor_history = []
+
+        # 초기화 로그
+        self._log(f"{'=' * 70}")
+        self._log(f"[INIT] TextAlign 인스턴스 생성")
+        self._log(f"[INIT] 실행 파일: {_MODULE_INFO['file']}")
+        self._log(f"[INIT] Python 버전: {sys.version}")
+        self._log(f"[INIT] 세션 ID: {self.session_id}")
+        self._log(f"[INIT] 디버그 모드: {self.debug}")
+        self._log(f"[INIT] 로그 디렉토리: {self.log_dir}")
+        self._log(f"{'=' * 70}")
+
     def _log(self, message: str, level: str = "INFO"):
         """로그 메시지 출력 및 저장"""
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
@@ -60,6 +85,78 @@ class TextAlign:
             'level': level,
             'message': message
         })
+
+    def _track_cursor(self, action: str, context: str = "") -> Tuple[int, int, int]:
+        """
+        커서 위치를 추적하고 이력에 기록
+
+        Args:
+            action: 수행한 작업 (예: "GetPos", "SetPos", "SelectText")
+            context: 추가 컨텍스트 정보
+
+        Returns:
+            현재 커서 위치 (list_id, para_id, pos)
+        """
+        try:
+            pos = self.hwp.GetPos()
+            entry = {
+                'timestamp': datetime.now().strftime("%H:%M:%S.%f")[:-3],
+                'action': action,
+                'context': context,
+                'list_id': pos[0],
+                'para_id': pos[1],
+                'pos': pos[2]
+            }
+            self.cursor_history.append(entry)
+            self._log(f"[CURSOR] {action}: list={pos[0]}, para={pos[1]}, pos={pos[2]} | {context}", "CURSOR")
+            return pos
+        except Exception as e:
+            self._log(f"[CURSOR] {action} 실패: {e}", "ERROR")
+            return (0, 0, 0)
+
+    def _log_selection(self, action: str, start_para: int, start_pos: int,
+                       end_para: int, end_pos: int, result_text: str = None):
+        """
+        선택/복사 작업 상세 로그
+
+        Args:
+            action: 수행한 작업 (예: "SelectText", "GetTextFile")
+            start_para, start_pos: 선택 시작 위치
+            end_para, end_pos: 선택 끝 위치
+            result_text: 선택된 텍스트 (있는 경우)
+        """
+        self._log(f"[SELECT] {action}", "SELECT")
+        self._log(f"   범위: para {start_para}:{start_pos} ~ para {end_para}:{end_pos}", "SELECT")
+        self._log(f"   문자 수: {end_pos - start_pos if start_para == end_para else '(다중 문단)'}", "SELECT")
+        if result_text is not None:
+            preview = result_text[:30] + "..." if len(result_text) > 30 else result_text
+            self._log(f"   결과 텍스트: '{preview}' (길이: {len(result_text)})", "SELECT")
+            self._log(f"   결과 repr: {repr(result_text[:50]) if len(result_text) > 50 else repr(result_text)}", "SELECT")
+
+    def _log_cursor_change(self, before: Tuple, after: Tuple, operation: str):
+        """
+        커서 위치 변경 상세 로그
+
+        Args:
+            before: 이전 위치 (list_id, para_id, pos)
+            after: 이후 위치 (list_id, para_id, pos)
+            operation: 수행한 작업명
+        """
+        if before == after:
+            self._log(f"[CURSOR_CHG] {operation}: 위치 변경 없음 (para={before[1]}, pos={before[2]})", "CURSOR")
+        else:
+            self._log(f"[CURSOR_CHG] {operation}:", "CURSOR")
+            self._log(f"   이전: list={before[0]}, para={before[1]}, pos={before[2]}", "CURSOR")
+            self._log(f"   이후: list={after[0]}, para={after[1]}, pos={after[2]}", "CURSOR")
+            # 변경 분석
+            if before[1] != after[1]:
+                self._log(f"   >> 문단 변경: {before[1]} -> {after[1]}", "CURSOR")
+            if before[2] != after[2]:
+                self._log(f"   >> pos 변경: {before[2]} -> {after[2]} (차이: {after[2] - before[2]})", "CURSOR")
+
+    def get_cursor_history(self) -> List[Dict]:
+        """커서 이력 반환"""
+        return self.cursor_history.copy()
 
     def _get_line_info(self, para_id: int) -> Dict:
         """
@@ -75,14 +172,38 @@ class TextAlign:
                 'line_count': 5                    # 총 줄 수
             }
         """
-        # CustomBlock의 _get_line_starts 활용
-        line_starts, para_end = self.block._get_line_starts(para_id)
+        self._log(f"")
+        self._log(f"[_get_line_info] 문단 줄 정보 수집 시작: para_id={para_id}")
 
-        return {
+        # 현재 커서 위치 저장
+        saved_pos = self.hwp.GetPos()
+        self._log(f"   [1] 현재 커서 위치 저장: list={saved_pos[0]}, para={saved_pos[1]}, pos={saved_pos[2]}")
+
+        # CustomBlock의 _get_line_starts 활용
+        self._log(f"   [2] CustomBlock._get_line_starts({para_id}) 호출")
+        line_starts, para_end = self.block._get_line_starts(para_id)
+        self._log(f"   [3] 결과: line_starts={line_starts}, para_end={para_end}")
+
+        # 커서 위치 확인 (CustomBlock 내부에서 변경되었을 수 있음)
+        current_pos = self.hwp.GetPos()
+        self._log(f"   [4] _get_line_starts 후 커서 위치: list={current_pos[0]}, para={current_pos[1]}, pos={current_pos[2]}")
+
+        # 커서 위치가 변경되었으면 복원
+        if current_pos != saved_pos:
+            self._log(f"   [5] 커서 위치 변경 감지! 원래 위치로 복원: SetPos({saved_pos[0]}, {saved_pos[1]}, {saved_pos[2]})")
+            self.hwp.SetPos(saved_pos[0], saved_pos[1], saved_pos[2])
+            restored_pos = self.hwp.GetPos()
+            self._log(f"   [6] 복원 후 커서 위치: list={restored_pos[0]}, para={restored_pos[1]}, pos={restored_pos[2]}")
+        else:
+            self._log(f"   [5] 커서 위치 변경 없음")
+
+        result = {
             'line_starts': line_starts,
             'para_end': para_end,
             'line_count': len(line_starts)
         }
+        self._log(f"[_get_line_info] 완료: line_count={len(line_starts)}")
+        return result
 
     def _get_line_text(self, para_id: int, line_index: int, line_info: Dict) -> str:
         """
@@ -116,34 +237,43 @@ class TextAlign:
         # 범위 선택 및 텍스트 추출
         try:
             # 현재 위치 저장
-            saved_pos = self.hwp.GetPos()
+            saved_pos = self._track_cursor("SAVE", f"_get_line_text 시작 (line_index={line_index})")
             list_id = saved_pos[0]
-            self._log(f"   [1] 현재 커서 위치 저장: list={saved_pos[0]}, para={saved_pos[1]}, pos={saved_pos[2]}")
 
             # 줄의 시작 위치로 이동
             self._log(f"   [2] 줄 시작 위치로 이동: SetPos({list_id}, {para_id}, {start_pos})")
             self.hwp.SetPos(list_id, para_id, start_pos)
-            actual_pos = self.hwp.GetPos()
-            self._log(f"   [3] 이동 후 실제 위치: list={actual_pos[0]}, para={actual_pos[1]}, pos={actual_pos[2]}")
+            actual_pos = self._track_cursor("MOVE", f"SetPos({list_id}, {para_id}, {start_pos}) 후")
+            self._log_cursor_change(saved_pos, actual_pos, "SetPos (줄 시작)")
 
             # 문단 내 범위 선택
             self._log(f"   [4] 범위 선택: SelectText({para_id}, {start_pos}, {para_id}, {end_pos})")
+            before_select = self.hwp.GetPos()
             self.hwp.SelectText(para_id, start_pos, para_id, end_pos)
+            after_select = self._track_cursor("SELECT", f"SelectText({para_id}, {start_pos}, {para_id}, {end_pos}) 후")
+            self._log_cursor_change(before_select, after_select, "SelectText")
 
             # 선택된 텍스트 가져오기
             self._log(f"   [5] GetTextFile('TEXT', 'saveblock') 호출")
             text = self.hwp.GetTextFile("TEXT", "saveblock")
-            self._log(f"   [6] 원본 텍스트 (repr): {repr(text)}")
+            self._log_selection("GetTextFile", para_id, start_pos, para_id, end_pos, text)
 
             # 선택 해제
             self._log(f"   [7] 선택 해제: Cancel")
+            before_cancel = self.hwp.GetPos()
             self.hwp.HAction.Run("Cancel")
+            after_cancel = self._track_cursor("CANCEL", "HAction.Run('Cancel') 후")
+            self._log_cursor_change(before_cancel, after_cancel, "Cancel")
 
             # 원래 위치 복원
             self._log(f"   [8] 원래 위치 복원: SetPos({saved_pos[0]}, {saved_pos[1]}, {saved_pos[2]})")
             self.hwp.SetPos(saved_pos[0], saved_pos[1], saved_pos[2])
-            restored_pos = self.hwp.GetPos()
-            self._log(f"   [9] 복원 후 실제 위치: list={restored_pos[0]}, para={restored_pos[1]}, pos={restored_pos[2]}")
+            restored_pos = self._track_cursor("RESTORE", "원래 위치 복원 후")
+            self._log_cursor_change(after_cancel, restored_pos, "SetPos (복원)")
+
+            # 복원 검증
+            if restored_pos != saved_pos:
+                self._log(f"   [WARNING] 위치 복원 불일치! 예상: {saved_pos}, 실제: {restored_pos}", "WARNING")
 
             if text:
                 # 개행 문자만 제거 (공백은 유지)
@@ -160,15 +290,14 @@ class TextAlign:
             return text
         except Exception as e:
             self._log(f"_get_line_text: 텍스트 추출 실패 - {e}", "ERROR")
-            import traceback
             self._log(f"_get_line_text: traceback = {traceback.format_exc()}", "ERROR")
 
             # 원래 위치 복원 시도
             try:
                 self.hwp.SetPos(saved_pos[0], saved_pos[1], saved_pos[2])
                 self._log(f"_get_line_text: 예외 후 위치 복원 완료")
-            except:
-                self._log(f"_get_line_text: 예외 후 위치 복원 실패", "ERROR")
+            except Exception as restore_err:
+                self._log(f"_get_line_text: 예외 후 위치 복원 실패: {restore_err}", "ERROR")
 
             return ""
 
@@ -219,27 +348,71 @@ class TextAlign:
         Returns:
             True: 성공, False: 실패
         """
+        self._log(f"")
+        self._log(f"[_adjust_line_spacing] 자간 조정 시작")
+        self._log(f"   입력: para_id={para_id}, line_index={line_index}, spacing={spacing}")
+
         try:
+            # 현재 커서 위치 저장
+            saved_pos = self._track_cursor("SAVE", f"_adjust_line_spacing 시작 (line_index={line_index})")
+
             # 줄 선택
+            self._log(f"   [2] 블록 선택 시작: block.select_line_by_index({para_id}, {line_index})")
+            before_select = self.hwp.GetPos()
             self.block.select_line_by_index(para_id, line_index)
+            after_select_pos = self._track_cursor("SELECT", f"block.select_line_by_index({para_id}, {line_index}) 후")
+            self._log_cursor_change(before_select, after_select_pos, "select_line_by_index")
+
+            # 선택된 텍스트 확인 (디버그용)
+            selected_text = self.hwp.GetTextFile("TEXT", "saveblock")
+            if selected_text:
+                preview = selected_text[:50] + "..." if len(selected_text) > 50 else selected_text
+                self._log(f"   [4] 선택된 텍스트 (미리보기): '{preview}'")
+                self._log(f"       선택된 텍스트 길이: {len(selected_text)}")
+                self._log(f"       선택된 텍스트 repr: {repr(selected_text[:80]) if len(selected_text) > 80 else repr(selected_text)}")
+            else:
+                self._log(f"   [4] 선택된 텍스트: (없음 또는 빈 문자열)", "WARNING")
 
             # 자간 설정
+            self._log(f"   [5] HParameterSet.HCharShape 가져오기")
             pset = self.hwp.HParameterSet.HCharShape
+
+            self._log(f"   [6] HAction.GetDefault('CharShape', pset.HSet) 호출")
             self.hwp.HAction.GetDefault("CharShape", pset.HSet)
+
+            self._log(f"   [7] 자간 값 설정:")
+            self._log(f"       - SpacingHangul = {spacing}")
+            self._log(f"       - SpacingLatin = {spacing}")
             pset.SpacingHangul = spacing
             pset.SpacingLatin = spacing
+
+            self._log(f"   [8] HAction.Execute('CharShape', pset.HSet) 호출")
+            before_execute = self.hwp.GetPos()
             self.hwp.HAction.Execute("CharShape", pset.HSet)
+            after_action_pos = self._track_cursor("EXECUTE", "HAction.Execute('CharShape') 후")
+            self._log_cursor_change(before_execute, after_action_pos, "CharShape Execute")
 
             # 선택 해제
+            self._log(f"   [10] 블록 선택 해제: block.cancel()")
+            before_cancel = self.hwp.GetPos()
             self.block.cancel()
+            after_cancel_pos = self._track_cursor("CANCEL", "block.cancel() 후")
+            self._log_cursor_change(before_cancel, after_cancel_pos, "block.cancel")
 
             # 레이아웃 재계산 대기
-            time.sleep(0.05)
+            self._log(f"   [12] 레이아웃 재계산 대기 (0.025초)")
+            time.sleep(0.025)
 
+            # 최종 위치 확인
+            final_pos = self._track_cursor("FINAL", "_adjust_line_spacing 완료")
+            self._log_cursor_change(saved_pos, final_pos, "_adjust_line_spacing 전체")
+
+            self._log(f"[_adjust_line_spacing] 완료: 성공")
             return True
 
         except Exception as e:
-            self._log(f"자간 조정 실패: {e}", "ERROR")
+            self._log(f"[_adjust_line_spacing] 예외 발생: {e}", "ERROR")
+            self._log(f"   traceback: {traceback.format_exc()}", "ERROR")
             return False
 
     def save_debug_log(self, result: Dict, extra_info: Dict = None) -> str:
@@ -260,6 +433,7 @@ class TextAlign:
         # 저장할 데이터
         log_data = {
             'session_id': self.session_id,
+            'module_info': _MODULE_INFO,
             'start_time': self.session_start.isoformat(),
             'end_time': datetime.now().isoformat(),
             'duration_seconds': (datetime.now() - self.session_start).total_seconds(),
@@ -271,6 +445,8 @@ class TextAlign:
                 'total_lines': result['total_lines'],
                 'message': result['message']
             },
+            'cursor_history': self.cursor_history,
+            'cursor_history_count': len(self.cursor_history),
             'logs': self.log_messages
         }
 
@@ -303,6 +479,8 @@ class TextAlign:
         lines.append("=" * 80)
         lines.append(f"HWP 텍스트 정렬 디버그 로그")
         lines.append("=" * 80)
+        lines.append(f"실행 파일: {_MODULE_INFO['file']}")
+        lines.append(f"모듈 로드 시간: {_MODULE_INFO['loaded_at']}")
         lines.append(f"세션 ID: {self.session_id}")
         lines.append(f"시작 시간: {self.session_start.strftime('%Y-%m-%d %H:%M:%S')}")
         lines.append(f"종료 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -330,6 +508,29 @@ class TextAlign:
             lines.append(f"[{timestamp}] [{level:7s}] {message}")
 
         lines.append("")
+        lines.append("-" * 80)
+        lines.append("커서 이력 요약")
+        lines.append("-" * 80)
+        lines.append(f"총 커서 추적 횟수: {len(self.cursor_history)}")
+
+        # 커서 이력 통계
+        if self.cursor_history:
+            actions = {}
+            for entry in self.cursor_history:
+                action = entry['action']
+                actions[action] = actions.get(action, 0) + 1
+            lines.append("액션별 횟수:")
+            for action, count in sorted(actions.items(), key=lambda x: -x[1]):
+                lines.append(f"   {action}: {count}회")
+
+            # 마지막 10개 커서 이력
+            lines.append("")
+            lines.append("최근 커서 이력 (마지막 10개):")
+            for entry in self.cursor_history[-10:]:
+                lines.append(f"   [{entry['timestamp']}] {entry['action']}: "
+                           f"para={entry['para_id']}, pos={entry['pos']} | {entry['context']}")
+
+        lines.append("")
         lines.append("=" * 80)
 
         # 파일로 저장
@@ -340,7 +541,7 @@ class TextAlign:
 
     def align_paragraph(
         self,
-        spacing_step: float = -0.5,
+        spacing_step: float = -1.0,
         min_spacing: float = -100,
         max_iterations: int = 100
     ) -> Dict:
@@ -348,9 +549,9 @@ class TextAlign:
         현재 커서가 위치한 문단의 모든 줄 정렬
 
         Args:
-            spacing_step: 자간 감소 단위 (음수)
-            min_spacing: 최소 자간 값
-            max_iterations: 최대 반복 횟수
+            spacing_step: 자간 감소 단위 (음수, 기본 -1.0)
+            min_spacing: 최소 자간 값 (기본 -100)
+            max_iterations: 최대 반복 횟수 (기본 100)
 
         Returns:
             {
@@ -415,13 +616,23 @@ class TextAlign:
             while line_idx < total_lines and iteration_count < max_iterations:
                 iteration_count += 1
 
-                # 줄 정보 갱신 (자간 조정으로 줄 구조가 변경될 수 있음)
-                line_info = self._get_line_info(para_id)
+                self._log(f"")
+                self._log(f"{'#' * 70}")
+                self._log(f"# 메인 루프 반복 #{iteration_count}")
+                self._log(f"# line_idx={line_idx}, total_lines={total_lines}")
+                self._log(f"{'#' * 70}")
+
+                # 현재 커서 위치 확인
+                loop_pos = self.hwp.GetPos()
+                self._log(f"[루프 시작] 현재 커서 위치: list={loop_pos[0]}, para={loop_pos[1]}, pos={loop_pos[2]}")
+
+                # line_info는 이미 갱신되어 있음 (초기 또는 자간 조정 후)
                 current_total_lines = line_info['line_count']
+                self._log(f"[루프] 현재 줄 수: {current_total_lines}")
 
                 # 줄 수가 줄어든 경우 (정렬 성공으로 인한 줄 병합)
                 if line_idx >= current_total_lines:
-                    self._log(f"줄 {line_idx}가 병합됨 (전체 줄 수: {current_total_lines})")
+                    self._log(f"[루프 종료] 줄 {line_idx}가 병합됨 (전체 줄 수: {current_total_lines})")
                     break
 
                 # 현재 줄 텍스트
@@ -436,13 +647,13 @@ class TextAlign:
                     self._log(f"🔍 첫 공백 위치: {first_space_idx}")
                     self._log(f"   공백 앞 텍스트: '{current_text[:first_space_idx]}' (길이: {first_space_idx})")
 
-                    # 분리 패턴 분석
+                    # 분리 패턴 분석 (공백 앞 글자 수 기준)
                     if first_space_idx == 0:
-                        self._log(f"   📌 패턴: 1글자 분리 (공백이 0번째)")
+                        self._log(f"   📌 패턴: 공백 앞 0글자 (정렬 대상)")
                     elif first_space_idx == 1:
-                        self._log(f"   📌 패턴: 2글자 분리 (공백이 1번째)")
+                        self._log(f"   📌 패턴: 공백 앞 1글자 (정렬 대상)")
                     else:
-                        self._log(f"   ❌ 패턴: {first_space_idx+1}글자 (정렬 대상 아님)")
+                        self._log(f"   ❌ 패턴: 공백 앞 {first_space_idx}글자 (정렬 대상: 0~1글자만)")
                 else:
                     self._log(f"❌ 공백 없음 (정렬 불가)")
 
@@ -559,8 +770,12 @@ class TextAlign:
                     failed_count += 1
                     line_idx += 1
 
-            # 커서 위치 복원
-            self.hwp.SetPos(list_id, para_id, char_pos)
+            # 커서를 문단 끝으로 이동
+            para_end_pos = line_info['para_end']
+            before_final = self.hwp.GetPos()
+            self.hwp.SetPos(list_id, para_id, para_end_pos)
+            after_final = self._track_cursor("FINAL_MOVE", f"문단 끝으로 이동: SetPos({list_id}, {para_id}, {para_end_pos})")
+            self._log_cursor_change(before_final, after_final, "문단 끝으로 커서 이동")
 
             result = {
                 'success': failed_count == 0,
@@ -592,11 +807,13 @@ class TextAlign:
 
         except Exception as e:
             self._log(f"예외 발생: {e}", "ERROR")
+            self._log(f"   traceback: {traceback.format_exc()}", "ERROR")
             # 커서 위치 복원 시도
             try:
                 self.hwp.SetPos(list_id, para_id, char_pos)
-            except:
-                pass
+                self._log(f"예외 후 커서 위치 복원 성공")
+            except Exception as restore_err:
+                self._log(f"예외 후 커서 위치 복원 실패: {restore_err}", "ERROR")
 
             return {
                 'success': False,
@@ -614,8 +831,8 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description='HWP 텍스트 정렬 도구')
-    parser.add_argument('--spacing-step', type=float, default=-0.5,
-                       help='자간 감소 단위 (기본: -0.5)')
+    parser.add_argument('--spacing-step', type=float, default=-1.0,
+                       help='자간 감소 단위 (기본: -1.0)')
     parser.add_argument('--min-spacing', type=float, default=-100,
                        help='최소 자간 값 (기본: -100)')
     parser.add_argument('--max-iterations', type=int, default=100,
@@ -630,17 +847,17 @@ def main():
     # HWP 인스턴스 연결
     hwp = get_hwp_instance()
     if not hwp:
-        print("❌ 실행 중인 한글을 찾을 수 없습니다.")
+        print("[ERROR] 실행 중인 한글을 찾을 수 없습니다.")
         print("한글을 먼저 실행하고 문서를 열어주세요.")
         return
 
-    print("✅ 한글에 연결되었습니다.")
+    print("[OK] 한글에 연결되었습니다.")
 
     # TextAlign 객체 생성
     align = TextAlign(hwp, debug=args.debug)
 
     # 현재 문단 정렬
-    print("\n🔄 현재 문단 정렬 시작...")
+    print("\n[RUN] 현재 문단 정렬 시작...")
     result = align.align_paragraph(
         spacing_step=args.spacing_step,
         min_spacing=args.min_spacing,
@@ -649,7 +866,7 @@ def main():
 
     # 결과 출력
     print(f"\n{'='*50}")
-    print(f"✅ 완료" if result['success'] else "⚠️  일부 실패")
+    print(f"[OK] 완료" if result['success'] else "[WARN] 일부 실패")
     print(f"{'='*50}")
     print(f"조정된 줄 수: {result['adjusted_lines']}")
     print(f"건너뛴 줄 수: {result['skipped_lines']}")
@@ -661,13 +878,13 @@ def main():
     try:
         # JSON 로그 저장
         json_path = align.save_debug_log(result)
-        print(f"\n📄 JSON 로그 저장: {json_path}")
+        print(f"\n[LOG] JSON 로그 저장: {json_path}")
 
         # 텍스트 로그 저장
         text_path = align.save_text_log(result)
-        print(f"📄 텍스트 로그 저장: {text_path}")
+        print(f"[LOG] 텍스트 로그 저장: {text_path}")
     except Exception as e:
-        print(f"⚠️  로그 저장 실패: {e}")
+        print(f"[WARN] 로그 저장 실패: {e}")
 
 
 if __name__ == '__main__':
