@@ -145,6 +145,55 @@ class StyleNumb:
             'has_outline': bool(heading_str)
         }
 
+    def get_outline_shape(self):
+        """
+        개요 번호 설정 조회 (SecDef.OutlineShape)
+
+        Returns:
+            dict: 개요 번호 설정 정보
+        """
+        try:
+            # HParameterSet 방식으로 시도
+            self.hwp.HAction.GetDefault("OutlineNumber",
+                                        self.hwp.HParameterSet.HSecDef.HSet)
+            sec_set = self.hwp.HParameterSet.HSecDef
+
+            result = {}
+            # OutlineShape 서브셋 접근 시도
+            try:
+                outline_set = sec_set.OutlineShape
+
+                # 모든 속성 조회 시도
+                attrs = ['Type', 'StartNumber']
+                for attr in attrs:
+                    try:
+                        val = getattr(outline_set, attr, None)
+                        if val is not None:
+                            result[attr] = val
+                    except:
+                        pass
+
+                # 각 수준별 설정
+                for i in range(7):
+                    level_info = {}
+                    for attr in ['StrFormatLevel', 'NumFormatLevel', 'ParaShapeLevel',
+                                 'CharShapeLevel', 'StartNumberLevel']:
+                        try:
+                            val = getattr(outline_set, f"{attr}{i}", None)
+                            if val is not None:
+                                level_info[attr] = val
+                        except:
+                            pass
+                    if level_info:
+                        result[f'level{i+1}'] = level_info
+
+            except Exception as e:
+                result['outline_error'] = str(e)
+
+            return result
+        except Exception as e:
+            return {'error': str(e)}
+
     def apply_style(self, style_name):
         """
         스타일 적용
@@ -336,7 +385,7 @@ class StyleNumb:
 
 
 def main():
-    """테스트: 열린 문서에서 # 헤딩 → 개요 변환 + 검증"""
+    """테스트: 개요 번호 설정 조회"""
     hwp = get_hwp_instance()
     if not hwp:
         print("[오류] 한글을 먼저 실행하세요")
@@ -346,20 +395,11 @@ def main():
 
     numb = StyleNumb(hwp)
 
-    # 개요수준정의 실행
-    print("[적용] 개요 수준 정의 중...")
-    result = numb.개요수준정의(remove_marker=True, debug=True)
-
-    print("=" * 50)
-    print(f"결과: {result['processed']}개 처리됨")
-
-    # 검증: 각 헤딩의 개요 번호 조회
-    if result['headings']:
-        print("\n[검증] 개요 번호 확인:")
-        for h in result['headings']:
-            hwp.SetPos(h['list_id'], h['para_id'], 0)
-            outline = numb.get_outline_level()
-            print(f"  lv{h['level']} '{h['clean_text'][:15]}' → '{outline['heading_string']}'")
+    # 개요 번호 설정 조회
+    print("\n[조회] 개요 번호 설정:")
+    shape = numb.get_outline_shape()
+    for key, value in shape.items():
+        print(f"  {key}: {value}")
 
 
 if __name__ == "__main__":
