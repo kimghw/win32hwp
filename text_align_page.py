@@ -27,7 +27,7 @@ class TextAlignPage:
     """HWP 페이지/문단 정보 추출 클래스"""
 
     # 클래스 변수: 문단-페이지 매핑 저장소
-    para_page_map = {}  # {para_id: {'start_page': int, 'end_page': int}}
+    para_page_map = {}  # {para_id: {'start_page': int, 'end_page': int, 'is_empty': bool}}
 
     def __init__(self, hwp, log_dir: str = "debugs/logs"):
         """
@@ -45,7 +45,7 @@ class TextAlignPage:
 
         Returns:
             {
-                para_id: {'start_page': int, 'end_page': int},
+                para_id: {'start_page': int, 'end_page': int, 'is_empty': bool},
                 ...
             }
         """
@@ -60,11 +60,13 @@ class TextAlignPage:
             while True:
                 para_id = self._get_current_para_id()
                 start_page, end_page = self._get_para_page_range(para_id)
+                is_empty = self._is_empty_paragraph()
 
                 # 클래스 변수에 저장
                 TextAlignPage.para_page_map[para_id] = {
                     'start_page': start_page,
-                    'end_page': end_page
+                    'end_page': end_page,
+                    'is_empty': is_empty
                 }
 
                 # 다음 문단으로 이동
@@ -83,6 +85,19 @@ class TextAlignPage:
         except Exception as e:
             self.hwp.SetPos(saved_pos[0], saved_pos[1], saved_pos[2])
             return TextAlignPage.para_page_map
+
+    def _is_empty_paragraph(self) -> bool:
+        """현재 문단이 빈 문단인지 확인"""
+        saved_pos = self.hwp.GetPos()
+
+        self.hwp.HAction.Run("MoveParaBegin")
+        self.hwp.HAction.Run("MoveParaEnd")
+        para_end = self.hwp.GetPos()[2]
+
+        self.hwp.SetPos(saved_pos[0], saved_pos[1], saved_pos[2])
+
+        # para_end가 1 이하면 빈 문단 (줄바꿈만 있음)
+        return para_end <= 1
 
     def _get_current_page(self) -> int:
         """현재 커서 위치의 페이지 번호 반환"""
@@ -271,6 +286,18 @@ class TextAlignPage:
 
         # 각 문단에 대해 align_paragraph 실행
         for para_id in para_ids:
+            # 빈 문단 스킵
+            para_info = TextAlignPage.para_page_map.get(para_id, {})
+            if para_info.get('is_empty', False):
+                results.append({
+                    'para_id': para_id,
+                    'adjusted': 0,
+                    'skipped': 0,
+                    'failed': 0,
+                    'empty': True
+                })
+                continue
+
             result = self.align_paragraph(
                 para_id,
                 spacing_step=spacing_step,
@@ -286,7 +313,8 @@ class TextAlignPage:
                 'para_id': para_id,
                 'adjusted': result.get('adjusted_lines', 0),
                 'skipped': result.get('skipped_lines', 0),
-                'failed': result.get('failed_lines', 0)
+                'failed': result.get('failed_lines', 0),
+                'empty': False
             })
 
         return {
