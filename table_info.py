@@ -6,7 +6,7 @@
 # - 예: {(0,0): 2, (0,1): 3, (0,2): 4, (0,3): 4, ...} 
 
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, List
 from cursor_utils import get_hwp_instance
 
 
@@ -370,6 +370,182 @@ class TableInfo:
                 list_id = coord_map.get((row, col), '-')
                 cells.append(f"({row},{col})→{list_id}")
             print(row_str + "  ".join(cells))
+
+    def find_all_tables(self) -> List[Dict]:
+        """
+        문서 내 모든 테이블을 찾아 정보 반환
+
+        HeadCtrl에서 시작하여 Next로 순회하며 CtrlID="tbl"인 컨트롤 수집
+
+        Returns:
+            list: [{'num': 번호, 'ctrl': 컨트롤, 'first_cell_list_id': 첫셀ID}, ...]
+        """
+        tables = []
+        ctrl = self.hwp.HeadCtrl
+        table_num = 0
+
+        while ctrl:
+            if ctrl.CtrlID == "tbl":
+                # 테이블 위치로 이동 후 선택
+                self.hwp.SetPosBySet(ctrl.GetAnchorPos(0))
+                self.hwp.HAction.Run("SelectCtrlFront")
+
+                # 첫 번째 셀 선택 (테이블 선택 상태에서)
+                self.hwp.HAction.Run("ShapeObjTableSelCell")
+
+                # 첫 셀의 list_id
+                pos = self.hwp.GetPos()
+                first_cell_list_id = pos[0]
+
+                tables.append({
+                    'num': table_num,
+                    'ctrl': ctrl,
+                    'first_cell_list_id': first_cell_list_id
+                })
+
+                self._log(f"테이블 {table_num}: 첫번째 셀 list_id={first_cell_list_id}")
+
+                # 선택 해제
+                self.hwp.HAction.Run("Cancel")
+                self.hwp.HAction.Run("MoveParentList")
+
+                table_num += 1
+
+            ctrl = ctrl.Next
+
+        return tables
+
+    def select_table(self, table_index: int):
+        """
+        특정 번호의 테이블 선택
+
+        Args:
+            table_index: 테이블 번호 (0부터 시작)
+
+        Returns:
+            ctrl: 선택된 테이블 컨트롤 (없으면 None)
+        """
+        ctrl = self.hwp.HeadCtrl
+        current_index = 0
+
+        while ctrl:
+            if ctrl.CtrlID == "tbl":
+                if current_index == table_index:
+                    # 테이블 선택
+                    self.hwp.SetPosBySet(ctrl.GetAnchorPos(0))
+                    if not self.hwp.HAction.Run("SelectCtrlFront"):
+                        self.hwp.HAction.Run("SelectCtrlReverse")
+                    self._log(f"테이블 {table_index} 선택됨")
+                    return ctrl
+                current_index += 1
+            ctrl = ctrl.Next
+
+        self._log(f"테이블 {table_index} 없음")
+        return None
+
+    def enter_table(self, table_index: int) -> bool:
+        """
+        특정 번호의 테이블 첫 번째 셀로 진입
+
+        Args:
+            table_index: 테이블 번호 (0부터 시작)
+
+        Returns:
+            bool: 성공 여부
+        """
+        ctrl = self.select_table(table_index)
+        if not ctrl:
+            return False
+
+        # 첫 번째 셀로 진입
+        self.hwp.HAction.Run("ShapeObjTableSelCell")
+        return True
+
+    def has_caption(self, table_index: int = None) -> bool:
+        """
+        테이블에 캡션이 있는지 확인
+
+        캡션 텍스트를 실제로 가져와서 존재 여부 판단
+
+        Args:
+            table_index: 테이블 번호 (None이면 현재 선택된 테이블)
+
+        Returns:
+            bool: 캡션 존재 여부
+        """
+        caption = self.get_table_caption(table_index)
+        return len(caption) > 0
+
+    def get_table_caption(self, table_index: int = None) -> str:
+        """
+        테이블 캡션 텍스트 가져오기
+
+        캡션은 테이블 마지막 셀 다음 list_id를 가짐
+        해당 위치로 이동하여 텍스트 추출
+
+        Args:
+            table_index: 테이블 번호 (None이면 현재 테이블)
+
+        Returns:
+            str: 캡션 텍스트 (없으면 빈 문자열)
+        """
+        if table_index is not None:
+            ctrl = self.select_table(table_index)
+            if not ctrl:
+                return ""
+            # 테이블 첫 셀로 진입
+            self.hwp.HAction.Run("ShapeObjTableSelCell")
+
+        try:
+            # 테이블의 마지막 셀로 이동
+            self.hwp.MovePos(MOVE_BOTTOM_OF_CELL, 0, 0)  # 맨 아래 행
+            self.hwp.MovePos(MOVE_END_OF_CELL, 0, 0)     # 맨 오른쪽 열
+
+            last_cell_list_id = self._get_list_id()
+
+            # 캡션 list_id = 마지막 셀 + 1
+            caption_list_id = last_cell_list_id + 1
+
+            # 캡션 위치로 이동 시도
+            self.hwp.SetPos(caption_list_id, 0, 0)
+            current_list_id = self._get_list_id()
+
+            # 이동 성공 확인
+            if current_list_id != caption_list_id:
+                return ""
+
+            # 캡션 텍스트 읽기 - 해당 리스트의 텍스트 추출
+            self.hwp.HAction.Run("SelectAll")
+            text = self.hwp.GetTextFile("TEXT", "")
+            self.hwp.HAction.Run("Cancel")
+
+            if text:
+                return text.strip()
+
+            return ""
+        except Exception as e:
+            self._log(f"캡션 조회 실패: {e}")
+            return ""
+
+    def get_all_table_captions(self) -> List[Dict]:
+        """
+        문서 내 모든 테이블의 캡션 가져오기
+
+        Returns:
+            list: [{'num': 번호, 'caption': 캡션텍스트}, ...]
+        """
+        captions = []
+        tables = self.find_all_tables()
+
+        for t in tables:
+            caption = self.get_table_caption(t['num'])
+            captions.append({
+                'num': t['num'],
+                'first_cell_list_id': t['first_cell_list_id'],
+                'caption': caption
+            })
+
+        return captions
 
 
 if __name__ == "__main__":
