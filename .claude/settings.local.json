@@ -60,7 +60,17 @@
       "Bash(python.exe:*)",
       "Bash(tail:*)",
       "Bash(python3:*)",
-      "Bash(/mnt/c/Users/USER/.pyenv/pyenv-win/versions/3.11.9/python.exe:*)"
+      "Bash(/mnt/c/Users/USER/.pyenv/pyenv-win/versions/3.11.9/python.exe:*)",
+      "Bash(curl:*)",
+      "Bash(sudo -E bash -)",
+      "Bash(sudo apt-get install:*)",
+      "Bash(bash)",
+      "Bash(export NVM_DIR=\"$HOME/.nvm\")",
+      "Bash([ -s \"$NVM_DIR/nvm.sh\" ])",
+      "Bash(. \"$NVM_DIR/nvm.sh\")",
+      "Bash(nvm install:*)",
+      "Bash(claude --version:*)",
+      "Bash(echo:*)"
     ]
   },
   "hooks": {

@@ -15,6 +15,12 @@
 #
 # 3. 각 셀의 이웃 정보 저장
 #    - {list_id: 27, left: 0, right: 28, up: 0, down: 0}
+# 4. 병합 셀 탐지
+#    - up, down 이 중복된 경우 rowspan
+#   - left, right 이 중복된 경우 colspan
+# 5. 테이블 크기 계산
+#    - 첫행 시작에서 열의 끝으로 이동 하여 셀 수 계산하고 중간에 up/down 중복 셀이 있으면 1개당 1개 추가
+#    - 행 수는 첫열 시작에서 행의 끝으로 이동하여 셀 수 계산하고 중간에 left/right 중복 셀이 있으면 1개당 1개 추가
 
 from collections import deque
 from dataclasses import dataclass
@@ -286,107 +292,44 @@ class TableInfo:
 
     def get_table_size(self) -> Dict[str, int]:
         """
-        테이블 크기 계산 (병합 셀 고려)
+        테이블 크기 계산
 
-        열 수: 첫 행을 오른쪽으로 이동하며 셀 수 + rowspan 병합 보정
-        행 수: 첫 열을 아래로 이동하며 셀 수 + colspan 병합 보정
+        열 수: 첫 셀 → 행 끝 list_id 차이 + 1
+        행 수: (수집된 셀 수 + 중복 수) / 열 수
 
         Returns:
-            Dict: {'rows': 행수, 'cols': 열수, 'rowspan_count': rowspan수, 'colspan_count': colspan수}
+            Dict: {'rows': 행수, 'cols': 열수}
         """
         if not self.cells:
             self.collect_cells_bfs()
 
-        if not self.cells:
-            return {'rows': 0, 'cols': 0, 'rowspan_count': 0, 'colspan_count': 0}
-
-        # 중복 이웃 분석
-        duplicates = self.find_duplicate_neighbors()
-
-        # rowspan: up 또는 down이 중복된 경우 (여러 셀이 같은 위/아래 셀을 가리킴)
-        # → 가로로 병합된 셀이 세로 방향에 영향
-        rowspan_cells = set()
-        for neighbor_id in duplicates['up'].keys():
-            rowspan_cells.add(neighbor_id)
-        for neighbor_id in duplicates['down'].keys():
-            rowspan_cells.add(neighbor_id)
-
-        # colspan: left 또는 right가 중복된 경우 (여러 셀이 같은 좌/우 셀을 가리킴)
-        # → 세로로 병합된 셀이 가로 방향에 영향
-        colspan_cells = set()
-        for neighbor_id in duplicates['left'].keys():
-            colspan_cells.add(neighbor_id)
-        for neighbor_id in duplicates['right'].keys():
-            colspan_cells.add(neighbor_id)
-
         # 첫 번째 셀로 이동
         if not self.move_to_first_cell():
-            return {'rows': 0, 'cols': 0, 'rowspan_count': 0, 'colspan_count': 0}
+            return {'rows': 0, 'cols': 0}
 
-        # 열 수 계산: 첫 행을 오른쪽으로 순회
-        col_count = 0
-        rowspan_in_first_row = 0
-        while True:
-            current_id = self._get_list_id()
-            col_count += 1
+        first_id = self._get_list_id()
 
-            # 현재 셀이 rowspan 병합 셀인지 확인
-            if current_id in rowspan_cells:
-                # 이 셀을 up으로 가리키는 셀 수 - 1 = 추가 열
-                up_refs = len(duplicates['up'].get(current_id, []))
-                down_refs = len(duplicates['down'].get(current_id, []))
-                extra = max(up_refs, down_refs) - 1
-                if extra > 0:
-                    rowspan_in_first_row += extra
-                    self._log(f"  열 {col_count}: 셀 {current_id}는 rowspan, 추가 열 +{extra}")
+        # 행 끝으로 이동 → 열 수
+        self.hwp.MovePos(MOVE_END_OF_CELL, 0, 0)
+        row_end_id = self._get_list_id()
+        cols = row_end_id - first_id + 1
 
-            # 오른쪽으로 이동
-            before = current_id
-            result = self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
-            after = self._get_list_id()
+        # 중복 이웃 수 계산
+        duplicates = self.find_duplicate_neighbors()
+        dup_count = 0
+        for direction in ['up', 'down', 'left', 'right']:
+            for refs in duplicates[direction].values():
+                dup_count += len(refs) - 1  # 3개 참조면 2 추가
 
-            if not result or after == before:
-                break
+        # 총 셀 수 = 수집된 셀 + 중복 수
+        total_cells = len(self.cells) + dup_count
+        rows = total_cells // cols
 
-        total_cols = col_count + rowspan_in_first_row
-
-        # 첫 번째 셀로 다시 이동
-        self.move_to_first_cell()
-
-        # 행 수 계산: 첫 열을 아래로 순회
-        row_count = 0
-        colspan_in_first_col = 0
-        while True:
-            current_id = self._get_list_id()
-            row_count += 1
-
-            # 현재 셀이 colspan 병합 셀인지 확인
-            if current_id in colspan_cells:
-                # 이 셀을 left로 가리키는 셀 수 - 1 = 추가 행
-                left_refs = len(duplicates['left'].get(current_id, []))
-                right_refs = len(duplicates['right'].get(current_id, []))
-                extra = max(left_refs, right_refs) - 1
-                if extra > 0:
-                    colspan_in_first_col += extra
-                    self._log(f"  행 {row_count}: 셀 {current_id}는 colspan, 추가 행 +{extra}")
-
-            # 아래로 이동
-            before = current_id
-            result = self.hwp.MovePos(MOVE_DOWN_OF_CELL, 0, 0)
-            after = self._get_list_id()
-
-            if not result or after == before:
-                break
-
-        total_rows = row_count + colspan_in_first_col
-
-        self._log(f"테이블 크기: {total_rows}행 x {total_cols}열 (rowspan={rowspan_in_first_row}, colspan={colspan_in_first_col})")
+        self._log(f"테이블 크기: {rows}행 x {cols}열 (셀={len(self.cells)}, 중복={dup_count}, 총={total_cells})")
 
         return {
-            'rows': total_rows,
-            'cols': total_cols,
-            'rowspan_count': rowspan_in_first_row,
-            'colspan_count': colspan_in_first_col
+            'rows': rows,
+            'cols': cols
         }
 
 
@@ -418,7 +361,7 @@ if __name__ == "__main__":
 
     print("\n4. 테이블 크기 계산...")
     size = table.get_table_size()
-    print(f"   행 수: {size['rows']} (colspan 보정: +{size['colspan_count']})")
-    print(f"   열 수: {size['cols']} (rowspan 보정: +{size['rowspan_count']})")
+    print(f"   행 수: {size['rows']}")
+    print(f"   열 수: {size['cols']}")
 
     print("\n=== 테스트 완료 ===")
