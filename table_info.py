@@ -18,6 +18,12 @@
 # 4. 병합 셀 탐지
 #    - up, down 이 중복된 경우 rowspan
 #   - left, right 이 중복된 경우 colspan
+#
+# 4.1 추가 병합셀 탐지 - 너비/높이 비교 방식
+#   - 가로병합된 셀에서 위, 아래로 너비를 비교해서 같다면 병합 수준이 같은 것으로 간주
+#   - 예로) 31번이 3개 병합된 것인데, 아래로 내려가 34번의 셀 넓이를 비교하니 같으면 31번과 동일한 수로 병합된것
+#   - 세로 병합된 셀에서 좌우로 연결된 셀들의 높이를 비교해서 같다면 동일한 수로 병합된 것으로 간주
+#
 # 5. 테이블 크기 계산
 #    - 첫행 시작에서 열의 끝으로 이동 하여 셀 수 계산하고 중간에 up/down 중복 셀이 있으면 1개당 1개 추가
 #    - 행 수는 첫열 시작에서 행의 끝으로 이동하여 셀 수 계산하고 중간에 left/right 중복 셀이 있으면 1개당 1개 추가
@@ -47,6 +53,8 @@ class CellInfo:
     right: int = 0   # 우측 셀의 list_id
     up: int = 0      # 상단 셀의 list_id
     down: int = 0    # 하단 셀의 list_id
+    width: int = 0   # 셀 너비 (HWPUNIT)
+    height: int = 0  # 셀 높이 (HWPUNIT)
 
 
 class TableInfo:
@@ -180,11 +188,16 @@ class TableInfo:
         return self.cells
 
     def _collect_neighbors(self, current_id: int) -> CellInfo:
-        """현재 셀의 이웃 정보 수집 (이동 후 복귀)"""
+        """현재 셀의 이웃 정보 및 크기 수집 (이동 후 복귀)"""
         cell_info = CellInfo(list_id=current_id)
 
         # 현재 위치 저장
         saved_pos = self.hwp.GetPos()
+
+        # 셀 크기 정보 수집
+        width, height = self.get_cell_dimensions()
+        cell_info.width = width
+        cell_info.height = height
 
         directions = [
             (MOVE_LEFT_OF_CELL, 'left'),
@@ -207,6 +220,32 @@ class TableInfo:
             self.hwp.SetPos(saved_pos[0], saved_pos[1], saved_pos[2])
 
         return cell_info
+
+    def get_cell_dimensions(self) -> tuple:
+        """
+        현재 커서 위치의 셀 너비/높이 조회
+
+        CellShape 속성을 사용하여 현재 셀의 크기 정보를 가져옴
+
+        Returns:
+            tuple: (width, height) HWPUNIT 단위, 실패 시 (0, 0)
+        """
+        try:
+            cell_shape = self.hwp.CellShape
+            if cell_shape is None:
+                return (0, 0)
+
+            # Cell 아이템에서 Width, Height 조회
+            cell = cell_shape.Item("Cell")
+            if cell is None:
+                return (0, 0)
+
+            width = cell.Item("Width")
+            height = cell.Item("Height")
+            return (width or 0, height or 0)
+        except Exception as e:
+            self._log(f"셀 크기 조회 실패: {e}")
+            return (0, 0)
 
     def find_duplicate_neighbors(self) -> Dict[str, Dict[int, List[int]]]:
         """
@@ -332,6 +371,211 @@ class TableInfo:
             'cols': cols
         }
 
+    def find_merged_by_dimensions(self) -> Dict[str, List[Dict]]:
+        """
+        4.1 추가 병합셀 탐지 - 너비/높이 비교 방식
+
+        가로 병합된 셀에서 위, 아래로 너비를 비교해서 같다면 병합 수준이 같은 것으로 간주
+        - 예: 31번이 3개 병합된 것인데, 아래로 내려가 34번의 셀 너비를 비교하니 같으면 31번과 동일한 수로 병합된 것
+
+        세로 병합된 셀에서 좌우로 연결된 셀들의 높이를 비교해서 같다면 동일한 수로 병합된 것으로 간주
+
+        Returns:
+            Dict: {
+                'horizontal_groups': [{'width': w, 'cells': [list_id, ...], 'colspan': n}],
+                'vertical_groups': [{'height': h, 'cells': [list_id, ...], 'rowspan': n}],
+                'base_width': 기준 너비,
+                'base_height': 기준 높이,
+                'cell_merge_info': {list_id: {'colspan': n, 'rowspan': n}}
+            }
+        """
+        if not self.cells:
+            self.collect_cells_bfs()
+
+        if not self.cells:
+            return {'horizontal_groups': [], 'vertical_groups': [], 'cell_merge_info': {}}
+
+        # 1. 너비별 셀 그룹화 (가로 병합 탐지용)
+        width_groups: Dict[int, List[int]] = {}
+        for cell_id, cell in self.cells.items():
+            if cell.width > 0:
+                if cell.width not in width_groups:
+                    width_groups[cell.width] = []
+                width_groups[cell.width].append(cell_id)
+
+        # 2. 높이별 셀 그룹화 (세로 병합 탐지용)
+        height_groups: Dict[int, List[int]] = {}
+        for cell_id, cell in self.cells.items():
+            if cell.height > 0:
+                if cell.height not in height_groups:
+                    height_groups[cell.height] = []
+                height_groups[cell.height].append(cell_id)
+
+        # 3. 상/하 연결된 셀 중 너비가 같은 것 찾기 (가로 병합 수준 동일)
+        horizontal_merged = []
+        for cell_id, cell in self.cells.items():
+            # 위쪽 셀과 비교
+            if cell.up != 0 and cell.up in self.cells:
+                up_cell = self.cells[cell.up]
+                if cell.width == up_cell.width and cell.width > 0:
+                    horizontal_merged.append({
+                        'type': 'same_width_vertical',
+                        'cell': cell_id,
+                        'neighbor': cell.up,
+                        'width': cell.width,
+                        'direction': 'up'
+                    })
+
+            # 아래쪽 셀과 비교
+            if cell.down != 0 and cell.down in self.cells:
+                down_cell = self.cells[cell.down]
+                if cell.width == down_cell.width and cell.width > 0:
+                    horizontal_merged.append({
+                        'type': 'same_width_vertical',
+                        'cell': cell_id,
+                        'neighbor': cell.down,
+                        'width': cell.width,
+                        'direction': 'down'
+                    })
+
+        # 4. 좌/우 연결된 셀 중 높이가 같은 것 찾기 (세로 병합 수준 동일)
+        vertical_merged = []
+        for cell_id, cell in self.cells.items():
+            # 왼쪽 셀과 비교
+            if cell.left != 0 and cell.left in self.cells:
+                left_cell = self.cells[cell.left]
+                if cell.height == left_cell.height and cell.height > 0:
+                    vertical_merged.append({
+                        'type': 'same_height_horizontal',
+                        'cell': cell_id,
+                        'neighbor': cell.left,
+                        'height': cell.height,
+                        'direction': 'left'
+                    })
+
+            # 오른쪽 셀과 비교
+            if cell.right != 0 and cell.right in self.cells:
+                right_cell = self.cells[cell.right]
+                if cell.height == right_cell.height and cell.height > 0:
+                    vertical_merged.append({
+                        'type': 'same_height_horizontal',
+                        'cell': cell_id,
+                        'neighbor': cell.right,
+                        'height': cell.height,
+                        'direction': 'right'
+                    })
+
+        # 5. 기준 너비/높이 찾기 (가장 작은 값 = 병합되지 않은 셀)
+        all_widths = [c.width for c in self.cells.values() if c.width > 0]
+        all_heights = [c.height for c in self.cells.values() if c.height > 0]
+
+        base_width = min(all_widths) if all_widths else 0
+        base_height = min(all_heights) if all_heights else 0
+
+        self._log(f"기준 너비: {base_width} ({base_width / 7200 * 25.4:.1f}mm)")
+        self._log(f"기준 높이: {base_height} ({base_height / 7200 * 25.4:.1f}mm)")
+
+        # 6. 각 셀의 병합 개수 계산
+        cell_merge_info: Dict[int, Dict] = {}
+        for cell_id, cell in self.cells.items():
+            colspan = 1
+            rowspan = 1
+
+            if base_width > 0 and cell.width > 0:
+                # 너비를 기준 너비로 나누어 가로 병합 개수 계산
+                colspan = round(cell.width / base_width)
+                if colspan < 1:
+                    colspan = 1
+
+            if base_height > 0 and cell.height > 0:
+                # 높이를 기준 높이로 나누어 세로 병합 개수 계산
+                rowspan = round(cell.height / base_height)
+                if rowspan < 1:
+                    rowspan = 1
+
+            cell_merge_info[cell_id] = {
+                'colspan': colspan,
+                'rowspan': rowspan,
+                'width': cell.width,
+                'height': cell.height
+            }
+
+            if colspan > 1 or rowspan > 1:
+                self._log(f"셀 {cell_id}: colspan={colspan}, rowspan={rowspan}")
+
+        # 7. 결과 정리 - 너비별 그룹 (2개 이상 셀이 같은 너비를 가진 경우만)
+        horizontal_groups = []
+        for w, cells in width_groups.items():
+            if len(cells) >= 2:
+                colspan = round(w / base_width) if base_width > 0 else 1
+                horizontal_groups.append({
+                    'width': w,
+                    'cells': cells,
+                    'colspan': colspan
+                })
+
+        vertical_groups = []
+        for h, cells in height_groups.items():
+            if len(cells) >= 2:
+                rowspan = round(h / base_height) if base_height > 0 else 1
+                vertical_groups.append({
+                    'height': h,
+                    'cells': cells,
+                    'rowspan': rowspan
+                })
+
+        self._log(f"너비 기반 병합 그룹: {len(horizontal_groups)}개")
+        self._log(f"높이 기반 병합 그룹: {len(vertical_groups)}개")
+
+        return {
+            'horizontal_groups': horizontal_groups,
+            'vertical_groups': vertical_groups,
+            'horizontal_merged': horizontal_merged,  # 상하 이웃 중 같은 너비
+            'vertical_merged': vertical_merged,      # 좌우 이웃 중 같은 높이
+            'base_width': base_width,
+            'base_height': base_height,
+            'cell_merge_info': cell_merge_info       # 각 셀의 병합 개수
+        }
+
+    def print_merged_by_dimensions(self):
+        """너비/높이 기반 병합 정보 출력"""
+        result = self.find_merged_by_dimensions()
+
+        print("\n=== 4.1 너비/높이 기반 병합 분석 ===")
+
+        # 기준 값 출력
+        base_w_mm = result['base_width'] / 7200 * 25.4 if result['base_width'] else 0
+        base_h_mm = result['base_height'] / 7200 * 25.4 if result['base_height'] else 0
+        print(f"\n[기준 값] 너비: {result['base_width']} ({base_w_mm:.1f}mm), 높이: {result['base_height']} ({base_h_mm:.1f}mm)")
+
+        print("\n[가로 병합 그룹] (같은 너비를 가진 셀들)")
+        if result['horizontal_groups']:
+            for group in result['horizontal_groups']:
+                width_mm = group['width'] / 7200 * 25.4  # HWPUNIT → mm
+                print(f"  너비 {group['width']} ({width_mm:.1f}mm) → colspan={group['colspan']}: 셀 {group['cells']}")
+        else:
+            print("  없음")
+
+        print("\n[세로 병합 그룹] (같은 높이를 가진 셀들)")
+        if result['vertical_groups']:
+            for group in result['vertical_groups']:
+                height_mm = group['height'] / 7200 * 25.4  # HWPUNIT → mm
+                print(f"  높이 {group['height']} ({height_mm:.1f}mm) → rowspan={group['rowspan']}: 셀 {group['cells']}")
+        else:
+            print("  없음")
+
+        print("\n[각 셀의 병합 정보]")
+        if result['cell_merge_info']:
+            merged_cells = [(cid, info) for cid, info in result['cell_merge_info'].items()
+                          if info['colspan'] > 1 or info['rowspan'] > 1]
+            if merged_cells:
+                for cell_id, info in merged_cells:
+                    print(f"  셀 {cell_id}: colspan={info['colspan']}, rowspan={info['rowspan']}")
+            else:
+                print("  병합된 셀 없음 (모든 셀이 1x1)")
+        else:
+            print("  정보 없음")
+
 
 if __name__ == "__main__":
     print("=== TableInfo 테스트 ===\n")
@@ -354,7 +598,9 @@ if __name__ == "__main__":
 
     print("\n2. 셀 정보:")
     for cell_id, cell in cells.items():
-        print(f"   셀 {cell_id}: L={cell.left}, R={cell.right}, U={cell.up}, D={cell.down}")
+        w_mm = cell.width / 7200 * 25.4 if cell.width > 0 else 0
+        h_mm = cell.height / 7200 * 25.4 if cell.height > 0 else 0
+        print(f"   셀 {cell_id}: L={cell.left}, R={cell.right}, U={cell.up}, D={cell.down}, W={w_mm:.1f}mm, H={h_mm:.1f}mm")
 
     print("\n3. 중복 이웃 분석...")
     table.print_duplicate_neighbors()
@@ -363,5 +609,8 @@ if __name__ == "__main__":
     size = table.get_table_size()
     print(f"   행 수: {size['rows']}")
     print(f"   열 수: {size['cols']}")
+
+    print("\n5. 너비/높이 기반 병합 분석...")
+    table.print_merged_by_dimensions()
 
     print("\n=== 테스트 완료 ===")
