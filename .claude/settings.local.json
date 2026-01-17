@@ -1,17 +1,4 @@
 {
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "powershell -Command \"$logDir = 'd:\\hwp_docs\\debugs\\logs'; if (Test-Path $logDir) { $files = Get-ChildItem $logDir -Filter '*.txt' | Where-Object { $_.LastWriteTime -gt (Get-Date).AddMinutes(-5) } | Sort-Object LastWriteTime -Descending | Select-Object -First 3; if ($files) { Write-Output '=== 최근 5분 내 로그 파일 ==='; $files | ForEach-Object { Write-Output $_.FullName } } }\""
-          }
-        ]
-      }
-    ]
-  },
   "permissions": {
     "allow": [
       "Bash(powershell.exe:*)",
@@ -68,7 +55,25 @@
       "Bash(git reset:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nHWP 자동화 프로젝트 전체 파일 추가\n\n- win32/: HWP API 문서 \\(ActionTable, ParameterSetTable, HwpAutomation\\)\n- pos_monitor.py: 이벤트 기반 커서 모니터링\n- check_events.py, create_hwp.py: 테스트 스크립트\n- test.hwp, red_text.hwp: 테스트 문서\n- HWP_API_에러정리.md, HWP_표_API_정리.md: API 정리 문서\n- 보안모듈_Automation.zip: 보안 모듈\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git commit:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(grep:*)",
+      "Bash(python.exe:*)",
+      "Bash(tail:*)",
+      "Bash(python3:*)",
+      "Bash(/mnt/c/Users/USER/.pyenv/pyenv-win/versions/3.11.9/python.exe:*)"
+    ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -Command \"$logDir = 'd:\\hwp_docs\\debugs\\logs'; if (Test-Path $logDir) { $files = Get-ChildItem $logDir -Filter '*.txt' | Where-Object { $_.LastWriteTime -gt (Get-Date).AddMinutes(-5) } | Sort-Object LastWriteTime -Descending | Select-Object -First 3; if ($files) { Write-Output '=== 최근 5분 내 로그 파일 ==='; $files | ForEach-Object { Write-Output $_.FullName } } }\""
+          }
+        ]
+      }
     ]
   }
 }

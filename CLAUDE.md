@@ -6,13 +6,15 @@
 hwp_docs/
 ├── separated_word.py      # 분리된 단어 처리 (SeparatedWord)
 ├── separated_para.py      # 분리된 문단 처리 (SeparatedPara)
-├── style_para.py       # 스타일 관리 (StylePara)
-├── style_numb.py   # 문단 번호 관리 (StyleNumb)
+├── style_para.py          # 스타일 관리 (StylePara)
+├── style_numb.py          # 문단 번호 관리 (StyleNumb)
 ├── block_selector.py      # 블록 선택 유틸리티 (BlockSelector)
-├── cursor_utils.py        # 커서 유틸리티 함수
+├── cursor_wrapper.py      # 커서 조작 통합 래퍼 (CursorWrapper) ⭐ 권장
+├── cursor_utils.py        # 커서 유틸리티 함수 (저수준)
+├── get_current_info.py    # 커서 위치 정보 조회 (KeyIndicatorInfo, PosInfo, CtrlInfo)
+├── table_info.py          # 테이블 정보 추출 (TableInfo)
 ├── styles.yaml            # 스타일 프리셋 정의
 ├── style_format.py        # 서식 관리 (StyleFormat)
-├── table_manager.py       # 테이블 관리 (TableManager)
 ├── run.py                 # 메인 실행 스크립트
 └── debugs/logs/           # 디버그 로그
 ```
@@ -341,36 +343,83 @@ hwp.HAction.Run("SelectAll")  # 또는 hwp.SelectText(para, pos, para, pos)
 hwp.HAction.Run("Cancel")  # 선택 해제
 ```
 
-## 커서 위치 관련
+## 커서 조작 및 위치 정보 - cursor_wrapper.py ⭐
 
-### 위치 정보 API
-- `hwp.GetPos()` → (list_id, para_id, char_pos)
-- `hwp.SetPos(list, para, pos)` → 커서 이동
-- `hwp.KeyIndicator()` → (총구역, 현재구역, 페이지, 단, 줄, 칸, 수정모드)
+**커서 관련 작업은 `CursorWrapper` 클래스 사용을 권장합니다.**
 
-### 커서 이동 액션
-- `MoveParaBegin` / `MoveParaEnd` - 문단 시작/끝
-- `MoveRight` / `MoveLeft` - 한 글자 이동
-- `MoveDown` / `MoveUp` - 한 줄 이동
-- `MoveSelRight` - 선택하며 이동
-
-### 텍스트 가져오기
 ```python
-hwp.HAction.Run("MoveSelRight")  # 선택
-text = hwp.GetTextFile("TEXT", "saveblock")  # 선택 영역만
-hwp.HAction.Run("Cancel")  # 선택 해제
+from cursor_wrapper import CursorWrapper
+
+cursor = CursorWrapper()  # hwp 자동 연결
+
+# 위치 정보 조회
+page = cursor.get_page()           # 페이지 번호
+line = cursor.get_line()           # 줄 번호
+pos = cursor.get_pos()             # (list_id, para_id, char_pos)
+ctrl_id = cursor.get_ctrl_id()     # 컨트롤 ID
+cursor.is_in_table()               # 표 안에 있는지 확인
+
+# 커서 이동
+cursor.move_line_end()             # 줄 끝으로 (End)
+cursor.move_line_begin()           # 줄 시작으로 (Home)
+cursor.move_para_end()             # 문단 끝
+cursor.move_para_begin()           # 문단 시작
+cursor.move_doc_begin()            # 문서 처음
+cursor.move_doc_end()              # 문서 끝
+
+# 위치 저장/복원
+saved_pos = cursor.save_pos()
+cursor.move_doc_end()
+cursor.restore_pos(saved_pos)
+
+# 텍스트 선택
+cursor.select_line()               # 현재 줄 선택
+cursor.select_para()               # 현재 문단 선택
+cursor.select_all()                # 전체 선택
+
+# 텍스트 조작
+text = cursor.get_selected_text()  # 선택된 텍스트
+char = cursor.get_char_at_cursor() # 현재 위치 글자
+cursor.insert_text("안녕하세요")
+cursor.delete_char(forward=True)   # Delete
+
+# 전체 정보 출력
+cursor.print_info()
 ```
 
-## cursor_utils.py 함수 요약
+**독립 실행:** `python cursor_wrapper.py`
 
-| 함수 | 인자 | 반환값 |
-|------|------|--------|
-| `get_hwp_instance()` | 없음 | hwp 객체 또는 None |
-| `get_current_pos(hwp)` | hwp | `{list_id, para_id, char_pos, page, line, column, insert_mode}` |
-| `get_para_range(hwp)` | hwp | `{current: (l,p,c), start: int, end: int}` |
-| `get_line_range(hwp)` | hwp | `{current: (l,p,c), start: int, end: int, line_starts: []}` |
-| `get_sentences(hwp, include_text=False)` | hwp, bool | `[{index, start, end}, ...]` 또는 `(list, text)` |
-| `get_cursor_index(hwp, pos=None)` | hwp, int/None | `{sentence_index, word_index, sentence_start, sentence_end}` |
+### 주요 메서드
+
+| 카테고리 | 메서드 | 설명 |
+|----------|--------|------|
+| **정보 조회** | `get_pos()` | (list_id, para_id, char_pos) |
+| | `get_page()` | 페이지 번호 |
+| | `get_line()` | 줄 번호 |
+| | `get_ctrl_id()` | 컨트롤 ID |
+| | `is_in_table()` | 표 안에 있는지 |
+| | `is_in_ctrl(ctrl_id)` | 특정 컨트롤 안에 있는지 |
+| **이동 (문단)** | `move_para_begin()` | 문단 시작 |
+| | `move_para_end()` | 문단 끝 |
+| **이동 (줄)** | `move_line_begin()` | 줄 시작 (Home) |
+| | `move_line_end()` | 줄 끝 (End) |
+| **이동 (문서)** | `move_doc_begin()` | 문서 처음 |
+| | `move_doc_end()` | 문서 끝 |
+| **이동 (글자)** | `move_left(count)` | 왼쪽으로 n글자 |
+| | `move_right(count)` | 오른쪽으로 n글자 |
+| | `move_up(count)` | 위로 n줄 |
+| | `move_down(count)` | 아래로 n줄 |
+| **위치 관리** | `save_pos()` | 현재 위치 저장 |
+| | `restore_pos(pos)` | 위치 복원 |
+| | `set_pos(list, para, char)` | 특정 위치로 이동 |
+| **선택** | `select_all()` | 전체 선택 |
+| | `select_line()` | 현재 줄 선택 |
+| | `select_para()` | 현재 문단 선택 |
+| | `cancel_selection()` | 선택 해제 |
+| **텍스트** | `get_selected_text()` | 선택된 텍스트 |
+| | `get_char_at_cursor()` | 커서 위치 글자 |
+| | `insert_text(text)` | 텍스트 삽입 |
+| | `delete_char(forward)` | 글자 삭제 |
 
 ## block_selector.py - BlockSelector 클래스
 
@@ -403,15 +452,179 @@ text = block.get_selected_text()
 block.cancel()
 ```
 
+### 5. table_info.py - 테이블 정보 추출
+
+테이블 크기(행/열 개수) 및 셀 위치 정보 추출
+
+```python
+from table_info import TableInfo
+from cursor_utils import get_hwp_instance
+
+hwp = get_hwp_instance()
+table = TableInfo(hwp, debug=True)
+
+# 테이블 크기 조회
+size = table.get_table_size()
+print(f"행: {size['rows']}, 열: {size['cols']}")
+
+# 모든 셀 위치 추출
+cells = table.get_all_cell_positions()
+for cell in cells:
+    print(f"셀({cell['row']}, {cell['col']}): {cell['pos']}")
+
+# 특정 셀로 이동
+table.move_to_cell(1, 2)  # 2행 3열 (0-based)
+
+# 셀 텍스트 가져오기
+text = table.get_cell_text(0, 0)
+
+# 전체 테이블 정보
+info = table.get_table_info()  # 크기 + 위치 + 텍스트
+```
+
+**독립 실행:** `python table_info.py`
+
+| 메서드 | 설명 |
+|--------|------|
+| `is_in_table()` | 커서가 테이블 내부에 있는지 확인 |
+| `get_table_size()` | 테이블 크기 (행/열 개수) 반환 |
+| `get_cell_pos(row, col)` | 특정 셀의 위치 (list_id, para_id, char_pos) |
+| `get_all_cell_positions()` | 모든 셀 위치 정보 리스트 |
+| `move_to_cell(row, col)` | 특정 셀로 커서 이동 |
+| `select_cell(row, col)` | 특정 셀 선택 (전체 블록 지정) |
+| `get_cell_text(row, col)` | 특정 셀의 텍스트 내용 |
+| `get_table_info()` | 전체 테이블 정보 (크기+위치+텍스트) |
+| `is_merged_cell(row, col)` | 셀 병합 여부 확인 |
+
+**MovePos 셀 이동 상수:**
+- `MOVE_LEFT_OF_CELL (100)` - 왼쪽 셀로 이동
+- `MOVE_RIGHT_OF_CELL (101)` - 오른쪽 셀로 이동
+- `MOVE_UP_OF_CELL (102)` - 위쪽 셀로 이동
+- `MOVE_DOWN_OF_CELL (103)` - 아래쪽 셀로 이동
+- `MOVE_START_OF_CELL (104)` - 행의 시작 셀
+- `MOVE_END_OF_CELL (105)` - 행의 끝 셀
+- `MOVE_TOP_OF_CELL (106)` - 열의 시작 셀
+- `MOVE_BOTTOM_OF_CELL (107)` - 열의 끝 셀
+
+**주의사항:**
+- 행/열 번호는 모두 0-based (0부터 시작)
+- 테이블 외부에서 호출 시 None 반환
+- 모든 메서드는 커서 위치를 원래대로 복원
+
+#### 셀 병합 감지 (is_merged_cell)
+
+HWP 테이블에서 병합된 셀을 감지하는 방법 (상세 내용: [table_info.md](table_info.md))
+
+```python
+# 셀 병합 확인
+result = table.is_merged_cell(5, 0)
+
+if result['is_merged']:
+    print(f"병합 유형: {result['merge_type']}")  # 'vertical', 'horizontal', 'both'
+    print(f"시작 셀: {result['master_cell']}")   # (row, col)
+```
+
+**반환값:**
+```python
+{
+    'is_merged': bool,           # 병합 여부
+    'merge_type': str | None,    # 'vertical', 'horizontal', 'both', None
+    'master_cell': tuple | None  # 병합 시작 셀 (row, col)
+}
+```
+
+**병합 감지 원리:**
+
+HWP의 각 셀은 고유한 `sublist` (list_id) 값을 가지며, 병합된 셀은 특정 패턴을 보입니다.
+
+1. **세로 병합 감지**: 오른쪽 열의 sublist 비교
+   ```
+   ┌──────┬────┐
+   │      │ B1 │  ← (4,0) 병합 시작, (4,1) sublist=15
+   │  A   ├────┤
+   │      │ B2 │  ← (5,0) 접근불가,  (5,1) sublist=14
+   └──────┴────┘
+
+   검증: (5,1).sublist == (4,1).sublist - 1
+   → 14 == 15 - 1 ✓ → (4,0)과 (5,0) 세로 병합
+   ```
+
+2. **가로 병합 감지**: 아래쪽 행의 sublist 비교
+   ```
+   ┌────┬────┬────┐
+   │ A1 │  B      │  ← (2,0), (2,1) 병합, (2,2) 접근불가
+   ├────┼────┼────┤
+   │ A2 │ C1 │ C2 │  ← (3,1) sublist=20, (3,2) sublist=21
+   └────┴────┴────┘
+
+   검증: (3,2).sublist == (3,1).sublist + 1
+   → 21 == 20 + 1 ✓ → (2,1)과 (2,2) 가로 병합
+   ```
+
+**패턴 요약:**
+- **세로 병합**: 오른쪽 열 sublist가 연속 감소 (`-1`)
+- **가로 병합**: 아래쪽 행 sublist가 연속 증가 (`+1`)
+
+## 저수준 커서 API (참고용)
+
+대부분의 경우 `CursorWrapper`를 사용하면 됩니다. 아래는 내부 동작을 이해하기 위한 참고 정보입니다.
+
+### GetPos() / SetPos()
+
+```python
+# 내부 위치 정보 (list_id, para_id, char_pos)
+pos = hwp.GetPos()
+list_id = pos[0]   # 0=본문, 10+=테이블
+para_id = pos[1]   # 문단 ID
+char_pos = pos[2]  # 문자 위치 (한글=2, 영문=1씩 증가)
+
+# 위치 이동
+hwp.SetPos(list_id, para_id, char_pos)
+```
+
+### KeyIndicator()
+
+```python
+# 상태바 정보 (공식 문서와 실제 반환값이 다름!)
+key = hwp.KeyIndicator()
+page = key[3]      # 페이지 번호 (문서에는 '단 번호'라고 잘못 기재)
+line = key[4]      # 줄 번호
+insert_mode = key[6]  # 0=삽입, 1=수정
+```
+
+**주의:** KeyIndicator는 API 버그가 많습니다. 대신 `CursorWrapper`나 `get_current_info.py`를 사용하세요.
+
+### 상세 정보 조회
+
+```python
+from get_current_info import CurrentInfo
+
+info = CurrentInfo()
+info.print_all()  # 모든 위치 정보 출력
+```
+
 ## 주의사항
+
+### 커서 위치 복원
+커서를 이동한 후에는 반드시 원래 위치로 복원하세요.
+
+```python
+cursor = CursorWrapper()
+
+# 위치 저장
+saved = cursor.save_pos()
+
+# 작업 수행
+cursor.move_doc_end()
+# ... 작업 ...
+
+# 위치 복원
+cursor.restore_pos(saved)
+```
 
 ### 이벤트 기반 vs 폴링
 - `DocumentChange` 이벤트: API 커서 이동도 발생 → 무한 루프 위험
-- **폴링 방식 권장**: 0.1초 간격으로 `GetPos()` 비교
-
-### 위치 정보 읽을 때
-- 문단/줄 범위를 알려면 커서를 이동해야 함
-- 이동 후 반드시 원래 위치로 복원: `hwp.SetPos(list, para, pos)`
+- **폴링 방식 권장**: 0.1초 간격으로 위치 비교
 
 ## 모듈 마이그레이션 가이드
 
