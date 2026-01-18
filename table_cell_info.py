@@ -527,6 +527,32 @@ def extract_table_properties():
                                         margin_left = cell.Item("MarginLeft") or 0
                                         margin_right = cell.Item("MarginRight") or 0
 
+                                        # 셀 필드 정보 조회
+                                        cell_field = ""
+                                        try:
+                                            field_list = hwp.GetFieldList(1, 0)  # 옵션 1 = 셀 필드
+                                            if field_list:
+                                                fields = field_list.split('\x02')
+                                                # 현재 셀 위치와 일치하는 필드 찾기
+                                                for fname in fields:
+                                                    if fname:
+                                                        # 필드로 이동해서 위치 확인
+                                                        try:
+                                                            hwp.MoveToField(fname, True, True, True)
+                                                            fpos = hwp.GetPos()
+                                                            if fpos[0] == list_id:
+                                                                fval = hwp.GetFieldText(fname) or ""
+                                                                cell_field = f" 필드:{fname}"
+                                                                if fval:
+                                                                    cell_field += f"={fval}"
+                                                                break
+                                                        except:
+                                                            pass
+                                                # 원래 셀로 복귀
+                                                hwp.SetPos(list_id, 0, 0)
+                                        except:
+                                            pass
+
                                         # 셀 속성 문자열 생성
                                         props_str = f" {{({row},{col}) list:{list_id} W:{width} H:{height}"
                                         props_str += f" 여백(상:{margin_top} 하:{margin_bottom} 좌:{margin_left} 우:{margin_right})"
@@ -545,6 +571,8 @@ def extract_table_properties():
 
                                         if flags:
                                             props_str += f" [{','.join(flags)}]"
+                                        if cell_field:
+                                            props_str += cell_field
                                         props_str += "}"
 
                                         # 셀 내 마지막 문단 끝으로 이동
