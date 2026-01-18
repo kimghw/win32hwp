@@ -1,0 +1,402 @@
+{
+  "session_id": "20260118_161839",
+  "module_info": {
+    "file": "C:\\win32hwp\\separated_word.py",
+    "name": "__main__",
+    "loaded_at": "2026-01-18T16:18:39.723723"
+  },
+  "start_time": "2026-01-18T16:18:39.736061",
+  "end_time": "2026-01-18T16:18:39.771812",
+  "duration_seconds": 0.035752,
+  "result": {
+    "success": true,
+    "adjusted_lines": 0,
+    "skipped_lines": 1,
+    "failed_lines": 0,
+    "total_lines": 2,
+    "message": "조정: 0, 건너뜀: 1, 실패: 0"
+  },
+  "cursor_history": [
+    {
+      "timestamp": "16:18:39.749",
+      "action": "SAVE",
+      "context": "_get_line_text 시작 (line_index=1)",
+      "list_id": 0,
+      "para_id": 0,
+      "pos": 16
+    },
+    {
+      "timestamp": "16:18:39.750",
+      "action": "MOVE",
+      "context": "SetPos(0, 0, 16) 후",
+      "list_id": 0,
+      "para_id": 0,
+      "pos": 16
+    },
+    {
+      "timestamp": "16:18:39.750",
+      "action": "SELECT",
+      "context": "SelectText(0, 16, 0, 16) 후",
+      "list_id": 0,
+      "para_id": 0,
+      "pos": 16
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "action": "CANCEL",
+      "context": "HAction.Run('Cancel') 후",
+      "list_id": 0,
+      "para_id": 0,
+      "pos": 16
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "action": "RESTORE",
+      "context": "원래 위치 복원 후",
+      "list_id": 0,
+      "para_id": 0,
+      "pos": 16
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "action": "FINAL_MOVE",
+      "context": "문단 끝으로 이동: SetPos(0, 0, 16)",
+      "list_id": 0,
+      "para_id": 0,
+      "pos": 16
+    }
+  ],
+  "cursor_history_count": 6,
+  "logs": [
+    {
+      "timestamp": "16:18:39.737",
+      "level": "INFO",
+      "message": "============================================================"
+    },
+    {
+      "timestamp": "16:18:39.737",
+      "level": "INFO",
+      "message": "분리된 단어 처리 시작"
+    },
+    {
+      "timestamp": "16:18:39.737",
+      "level": "INFO",
+      "message": "============================================================"
+    },
+    {
+      "timestamp": "16:18:39.737",
+      "level": "INFO",
+      "message": "위치: para_id=0, char_pos=16"
+    },
+    {
+      "timestamp": "16:18:39.737",
+      "level": "INFO",
+      "message": "파라미터:"
+    },
+    {
+      "timestamp": "16:18:39.737",
+      "level": "INFO",
+      "message": "   - spacing_step: -1.0 (자간 감소 단위)"
+    },
+    {
+      "timestamp": "16:18:39.737",
+      "level": "INFO",
+      "message": "   - min_spacing: -100 (최소 자간값)"
+    },
+    {
+      "timestamp": "16:18:39.737",
+      "level": "INFO",
+      "message": "   - max_iterations: 100 (최대 반복)"
+    },
+    {
+      "timestamp": "16:18:39.737",
+      "level": "INFO",
+      "message": "------------------------------------------------------------"
+    },
+    {
+      "timestamp": "16:18:39.737",
+      "level": "INFO",
+      "message": ""
+    },
+    {
+      "timestamp": "16:18:39.737",
+      "level": "INFO",
+      "message": "[_get_line_info] 문단 줄 정보 수집 시작: para_id=0"
+    },
+    {
+      "timestamp": "16:18:39.739",
+      "level": "INFO",
+      "message": "   [1] 현재 커서 위치 저장: list=0, para=0, pos=16"
+    },
+    {
+      "timestamp": "16:18:39.739",
+      "level": "INFO",
+      "message": "   [2] BlockSelector._get_line_starts(0) 호출"
+    },
+    {
+      "timestamp": "16:18:39.749",
+      "level": "INFO",
+      "message": "   [3] 결과: line_starts=[0, 16], para_end=16"
+    },
+    {
+      "timestamp": "16:18:39.749",
+      "level": "INFO",
+      "message": "   [4] _get_line_starts 후 커서 위치: list=0, para=0, pos=16"
+    },
+    {
+      "timestamp": "16:18:39.749",
+      "level": "INFO",
+      "message": "   [5] 커서 위치 변경 없음"
+    },
+    {
+      "timestamp": "16:18:39.749",
+      "level": "INFO",
+      "message": "[_get_line_info] 완료: line_count=2"
+    },
+    {
+      "timestamp": "16:18:39.749",
+      "level": "INFO",
+      "message": "전체 줄 수: 2"
+    },
+    {
+      "timestamp": "16:18:39.749",
+      "level": "INFO",
+      "message": "줄 시작 위치: [0, 16]"
+    },
+    {
+      "timestamp": "16:18:39.749",
+      "level": "INFO",
+      "message": "문단 끝 위치: 16"
+    },
+    {
+      "timestamp": "16:18:39.749",
+      "level": "INFO",
+      "message": ""
+    },
+    {
+      "timestamp": "16:18:39.749",
+      "level": "INFO",
+      "message": "######################################################################"
+    },
+    {
+      "timestamp": "16:18:39.749",
+      "level": "INFO",
+      "message": "# 메인 루프 반복 #1"
+    },
+    {
+      "timestamp": "16:18:39.749",
+      "level": "INFO",
+      "message": "# line_idx=1, total_lines=2"
+    },
+    {
+      "timestamp": "16:18:39.749",
+      "level": "INFO",
+      "message": "######################################################################"
+    },
+    {
+      "timestamp": "16:18:39.749",
+      "level": "INFO",
+      "message": "[루프 시작] 현재 커서 위치: list=0, para=0, pos=16"
+    },
+    {
+      "timestamp": "16:18:39.749",
+      "level": "INFO",
+      "message": "[루프] 현재 줄 수: 2"
+    },
+    {
+      "timestamp": "16:18:39.749",
+      "level": "INFO",
+      "message": "_get_line_text: para_id=0, line_index=1, start_pos=16, end_pos=16"
+    },
+    {
+      "timestamp": "16:18:39.749",
+      "level": "CURSOR",
+      "message": "[CURSOR] SAVE: list=0, para=0, pos=16 | _get_line_text 시작 (line_index=1)"
+    },
+    {
+      "timestamp": "16:18:39.749",
+      "level": "INFO",
+      "message": "   [2] 줄 시작 위치로 이동: SetPos(0, 0, 16)"
+    },
+    {
+      "timestamp": "16:18:39.750",
+      "level": "CURSOR",
+      "message": "[CURSOR] MOVE: list=0, para=0, pos=16 | SetPos(0, 0, 16) 후"
+    },
+    {
+      "timestamp": "16:18:39.750",
+      "level": "CURSOR",
+      "message": "[CURSOR_CHG] SetPos (줄 시작): 위치 변경 없음 (para=0, pos=16)"
+    },
+    {
+      "timestamp": "16:18:39.750",
+      "level": "INFO",
+      "message": "   [4] 범위 선택: SelectText(0, 16, 0, 16)"
+    },
+    {
+      "timestamp": "16:18:39.750",
+      "level": "CURSOR",
+      "message": "[CURSOR] SELECT: list=0, para=0, pos=16 | SelectText(0, 16, 0, 16) 후"
+    },
+    {
+      "timestamp": "16:18:39.750",
+      "level": "CURSOR",
+      "message": "[CURSOR_CHG] SelectText: 위치 변경 없음 (para=0, pos=16)"
+    },
+    {
+      "timestamp": "16:18:39.750",
+      "level": "INFO",
+      "message": "   [5] GetTextFile('TEXT', 'saveblock') 호출"
+    },
+    {
+      "timestamp": "16:18:39.767",
+      "level": "SELECT",
+      "message": "[SELECT] GetTextFile"
+    },
+    {
+      "timestamp": "16:18:39.767",
+      "level": "SELECT",
+      "message": "   범위: para 0:16 ~ para 0:16"
+    },
+    {
+      "timestamp": "16:18:39.767",
+      "level": "SELECT",
+      "message": "   문자 수: 0"
+    },
+    {
+      "timestamp": "16:18:39.767",
+      "level": "INFO",
+      "message": "   [7] 선택 해제: Cancel"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "CURSOR",
+      "message": "[CURSOR] CANCEL: list=0, para=0, pos=16 | HAction.Run('Cancel') 후"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "CURSOR",
+      "message": "[CURSOR_CHG] Cancel: 위치 변경 없음 (para=0, pos=16)"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "   [8] 원래 위치 복원: SetPos(0, 0, 16)"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "CURSOR",
+      "message": "[CURSOR] RESTORE: list=0, para=0, pos=16 | 원래 위치 복원 후"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "CURSOR",
+      "message": "[CURSOR_CHG] SetPos (복원): 위치 변경 없음 (para=0, pos=16)"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "   [10] 텍스트 없음 (None 또는 빈 문자열)"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "_get_line_text: 최종 텍스트 = '' (길이: 0)"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "\n--- 줄 2/2 ---"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "텍스트 전체: ''"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "텍스트 길이: 0"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "공백 없음 (처리 불가)"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "건너뜀: 처리 패턴 불일치"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "CURSOR",
+      "message": "[CURSOR] FINAL_MOVE: list=0, para=0, pos=16 | 문단 끝으로 이동: SetPos(0, 0, 16)"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "CURSOR",
+      "message": "[CURSOR_CHG] 문단 끝으로 커서 이동: 위치 변경 없음 (para=0, pos=16)"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": ""
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "============================================================"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "작업 완료"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "============================================================"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "결과 요약:"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "   전체 줄 수: 2"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "   조정 성공: 0 줄"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "   건너뜀: 1 줄"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "   실패: 0 줄"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "   반복 횟수: 1/100"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "모든 줄 처리 완료!"
+    },
+    {
+      "timestamp": "16:18:39.771",
+      "level": "INFO",
+      "message": "============================================================"
+    }
+  ]
+}

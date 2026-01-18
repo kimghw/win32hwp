@@ -1,0 +1,43 @@
+=== HWP 위치 정보 삽입 시작 ===
+로그 파일: C:\win32hwp\logs\pos_info_20260118_134906.log
+
+HWP 인스턴스 연결 중...
+ROT 방식으로 연결 성공
+HWP 연결 성공!
+
+
+=== 컨트롤 목록 ===
+[0] CtrlID: secd, 설명: 구역 정의
+[1] CtrlID: cold, 설명: 단 정의
+[2] CtrlID: pgnp, 설명: 쪽 번호 위치
+[3] CtrlID: nwno, 설명: 새 번호
+[4] CtrlID: tbl, 설명: 표
+     -> 표 컨트롤 저장
+[5] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[6] CtrlID: tbl, 설명: 표
+     -> 표 컨트롤 저장
+[7] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[8] CtrlID: tbl, 설명: 표
+     -> 표 컨트롤 저장
+[9] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[10] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[11] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[12] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[13] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[14] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[15] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[16] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+
+총 17개 컨트롤, 표 3개
+
+=== 본문 문단 정보 ===

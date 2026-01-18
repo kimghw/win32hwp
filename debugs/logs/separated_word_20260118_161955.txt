@@ -1,0 +1,572 @@
+================================================================================
+분리된 단어 처리 디버그 로그
+================================================================================
+실행 파일: C:\win32hwp\separated_word.py
+모듈 로드 시간: 2026-01-18T16:19:55.370302
+세션 ID: 20260118_161955
+시작 시간: 2026-01-18 16:19:55
+종료 시간: 2026-01-18 16:19:56
+소요 시간: 0.86초
+
+--------------------------------------------------------------------------------
+작업 결과
+--------------------------------------------------------------------------------
+성공 여부: 성공
+조정된 줄 수: 1
+건너뛴 줄 수: 2
+실패한 줄 수: 0
+전체 줄 수: 3
+메시지: 조정: 1, 건너뜀: 2, 실패: 0
+
+--------------------------------------------------------------------------------
+상세 로그
+--------------------------------------------------------------------------------
+[16:19:55.383] [INFO   ] ============================================================
+[16:19:55.383] [INFO   ] 분리된 단어 처리 시작
+[16:19:55.383] [INFO   ] ============================================================
+[16:19:55.383] [INFO   ] 위치: para_id=1, char_pos=112
+[16:19:55.383] [INFO   ] 파라미터:
+[16:19:55.383] [INFO   ]    - spacing_step: -1.0 (자간 감소 단위)
+[16:19:55.383] [INFO   ]    - min_spacing: -100 (최소 자간값)
+[16:19:55.383] [INFO   ]    - max_iterations: 100 (최대 반복)
+[16:19:55.383] [INFO   ] ------------------------------------------------------------
+[16:19:55.383] [INFO   ] 
+[16:19:55.383] [INFO   ] [_get_line_info] 문단 줄 정보 수집 시작: para_id=1
+[16:19:55.383] [INFO   ]    [1] 현재 커서 위치 저장: list=0, para=1, pos=112
+[16:19:55.383] [INFO   ]    [2] BlockSelector._get_line_starts(1) 호출
+[16:19:55.398] [INFO   ]    [3] 결과: line_starts=[0, 50, 98], para_end=112
+[16:19:55.398] [INFO   ]    [4] _get_line_starts 후 커서 위치: list=0, para=1, pos=112
+[16:19:55.398] [INFO   ]    [5] 커서 위치 변경 없음
+[16:19:55.398] [INFO   ] [_get_line_info] 완료: line_count=3
+[16:19:55.398] [INFO   ] 전체 줄 수: 3
+[16:19:55.398] [INFO   ] 줄 시작 위치: [0, 50, 98]
+[16:19:55.398] [INFO   ] 문단 끝 위치: 112
+[16:19:55.398] [INFO   ] 
+[16:19:55.398] [INFO   ] ######################################################################
+[16:19:55.398] [INFO   ] # 메인 루프 반복 #1
+[16:19:55.398] [INFO   ] # line_idx=1, total_lines=3
+[16:19:55.398] [INFO   ] ######################################################################
+[16:19:55.398] [INFO   ] [루프 시작] 현재 커서 위치: list=0, para=1, pos=112
+[16:19:55.398] [INFO   ] [루프] 현재 줄 수: 3
+[16:19:55.398] [INFO   ] _get_line_text: para_id=1, line_index=1, start_pos=50, end_pos=98
+[16:19:55.398] [CURSOR ] [CURSOR] SAVE: list=0, para=1, pos=112 | _get_line_text 시작 (line_index=1)
+[16:19:55.398] [INFO   ]    [2] 줄 시작 위치로 이동: SetPos(0, 1, 50)
+[16:19:55.398] [CURSOR ] [CURSOR] MOVE: list=0, para=1, pos=50 | SetPos(0, 1, 50) 후
+[16:19:55.398] [CURSOR ] [CURSOR_CHG] SetPos (줄 시작):
+[16:19:55.398] [CURSOR ]    이전: list=0, para=1, pos=112
+[16:19:55.398] [CURSOR ]    이후: list=0, para=1, pos=50
+[16:19:55.398] [CURSOR ]    >> pos 변경: 112 -> 50 (차이: -62)
+[16:19:55.398] [INFO   ]    [4] 범위 선택: SelectText(1, 50, 1, 98)
+[16:19:55.405] [CURSOR ] [CURSOR] SELECT: list=0, para=1, pos=98 | SelectText(1, 50, 1, 98) 후
+[16:19:55.405] [CURSOR ] [CURSOR_CHG] SelectText:
+[16:19:55.405] [CURSOR ]    이전: list=0, para=1, pos=50
+[16:19:55.405] [CURSOR ]    이후: list=0, para=1, pos=98
+[16:19:55.405] [CURSOR ]    >> pos 변경: 50 -> 98 (차이: 48)
+[16:19:55.405] [INFO   ]    [5] GetTextFile('TEXT', 'saveblock') 호출
+[16:19:55.442] [SELECT ] [SELECT] GetTextFile
+[16:19:55.442] [SELECT ]    범위: para 1:50 ~ para 1:98
+[16:19:55.442] [SELECT ]    문자 수: 48
+[16:19:55.442] [SELECT ]    결과 텍스트: '항을 보장하기 위한 핵심 요소로서 24시간 실시간 모니...' (길이: 48)
+[16:19:55.442] [SELECT ]    결과 repr: '항을 보장하기 위한 핵심 요소로서 24시간 실시간 모니터링과 원격 제어가 가능한 통합 '
+[16:19:55.442] [INFO   ]    [7] 선택 해제: Cancel
+[16:19:55.457] [CURSOR ] [CURSOR] CANCEL: list=0, para=1, pos=98 | HAction.Run('Cancel') 후
+[16:19:55.457] [CURSOR ] [CURSOR_CHG] Cancel: 위치 변경 없음 (para=1, pos=98)
+[16:19:55.457] [INFO   ]    [8] 원래 위치 복원: SetPos(0, 1, 112)
+[16:19:55.457] [CURSOR ] [CURSOR] RESTORE: list=0, para=1, pos=112 | 원래 위치 복원 후
+[16:19:55.457] [CURSOR ] [CURSOR_CHG] SetPos (복원):
+[16:19:55.457] [CURSOR ]    이전: list=0, para=1, pos=98
+[16:19:55.457] [CURSOR ]    이후: list=0, para=1, pos=112
+[16:19:55.457] [CURSOR ]    >> pos 변경: 98 -> 112 (차이: 14)
+[16:19:55.457] [INFO   ]    [10] 개행 문자 처리 전: '항을 보장하기 위한 핵심 요소로서 24시간 실시간 모니터링과 원격 제어가 가능한 통합 '
+[16:19:55.457] [INFO   ]    [11] 개행 문자 처리 후: '항을 보장하기 위한 핵심 요소로서 24시간 실시간 모니터링과 원격 제어가 가능한 통합 '
+[16:19:55.457] [INFO   ] _get_line_text: 최종 텍스트 = '항을 보장하기 위한 핵심 요소로서 24시간 실시간 모니터링과 원격 제어가 가능한 통합 ' (길이: 48)
+[16:19:55.457] [INFO   ] 
+--- 줄 2/3 ---
+[16:19:55.457] [INFO   ] 텍스트 전체: '항을 보장하기 위한 핵심 요소로서 24시간 실시간 모니터링과 원격 제어가 가능한 통합 '
+[16:19:55.457] [INFO   ] 텍스트 길이: 48
+[16:19:55.457] [INFO   ] 첫 공백 위치: 2
+[16:19:55.457] [INFO   ]    공백 앞 텍스트: '항을' (길이: 2)
+[16:19:55.457] [INFO   ]    패턴: 공백 앞 2글자 (처리 대상: 0~1글자만)
+[16:19:55.457] [INFO   ] 처리 대상으로 판단됨
+[16:19:55.457] [INFO   ] _get_line_text: para_id=1, line_index=0, start_pos=0, end_pos=50
+[16:19:55.457] [CURSOR ] [CURSOR] SAVE: list=0, para=1, pos=112 | _get_line_text 시작 (line_index=0)
+[16:19:55.457] [INFO   ]    [2] 줄 시작 위치로 이동: SetPos(0, 1, 0)
+[16:19:55.457] [CURSOR ] [CURSOR] MOVE: list=0, para=1, pos=0 | SetPos(0, 1, 0) 후
+[16:19:55.457] [CURSOR ] [CURSOR_CHG] SetPos (줄 시작):
+[16:19:55.457] [CURSOR ]    이전: list=0, para=1, pos=112
+[16:19:55.457] [CURSOR ]    이후: list=0, para=1, pos=0
+[16:19:55.457] [CURSOR ]    >> pos 변경: 112 -> 0 (차이: -112)
+[16:19:55.457] [INFO   ]    [4] 범위 선택: SelectText(1, 0, 1, 50)
+[16:19:55.464] [CURSOR ] [CURSOR] SELECT: list=0, para=1, pos=50 | SelectText(1, 0, 1, 50) 후
+[16:19:55.464] [CURSOR ] [CURSOR_CHG] SelectText:
+[16:19:55.464] [CURSOR ]    이전: list=0, para=1, pos=0
+[16:19:55.464] [CURSOR ]    이후: list=0, para=1, pos=50
+[16:19:55.464] [CURSOR ]    >> pos 변경: 0 -> 50 (차이: 50)
+[16:19:55.464] [INFO   ]    [5] GetTextFile('TEXT', 'saveblock') 호출
+[16:19:55.511] [SELECT ] [SELECT] GetTextFile
+[16:19:55.511] [SELECT ]    범위: para 1:0 ~ para 1:50
+[16:19:55.511] [SELECT ]    문자 수: 50
+[16:19:55.511] [SELECT ]    결과 텍스트: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발...' (길이: 50)
+[16:19:55.514] [SELECT ]    결과 repr: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운'
+[16:19:55.514] [INFO   ]    [7] 선택 해제: Cancel
+[16:19:55.526] [CURSOR ] [CURSOR] CANCEL: list=0, para=1, pos=50 | HAction.Run('Cancel') 후
+[16:19:55.526] [CURSOR ] [CURSOR_CHG] Cancel: 위치 변경 없음 (para=1, pos=50)
+[16:19:55.526] [INFO   ]    [8] 원래 위치 복원: SetPos(0, 1, 112)
+[16:19:55.528] [CURSOR ] [CURSOR] RESTORE: list=0, para=1, pos=112 | 원래 위치 복원 후
+[16:19:55.528] [CURSOR ] [CURSOR_CHG] SetPos (복원):
+[16:19:55.528] [CURSOR ]    이전: list=0, para=1, pos=50
+[16:19:55.528] [CURSOR ]    이후: list=0, para=1, pos=112
+[16:19:55.528] [CURSOR ]    >> pos 변경: 50 -> 112 (차이: 62)
+[16:19:55.528] [INFO   ]    [10] 개행 문자 처리 전: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운'
+[16:19:55.528] [INFO   ]    [11] 개행 문자 처리 후: ' ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운'
+[16:19:55.528] [INFO   ] _get_line_text: 최종 텍스트 = ' ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운' (길이: 49)
+[16:19:55.528] [INFO   ] 이전 줄 텍스트: ' ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운'
+[16:19:55.528] [INFO   ] 이전 줄 끝 문자: '운'
+[16:19:55.528] [INFO   ] 이전 줄 끝이 공백? False
+[16:19:55.528] [INFO   ] 처리 시작
+[16:19:55.528] [INFO   ]    이전 줄 끝 10자: ' 선박의 안전한 운'
+[16:19:55.528] [INFO   ] ------------------------------------------------------------
+[16:19:55.528] [INFO   ] 자간 조정 루프 시작:
+[16:19:55.528] [INFO   ]    초기 자간: 0
+[16:19:55.528] [INFO   ]    자간 감소 단위: -1.0
+[16:19:55.528] [INFO   ]    최소 자간: -100
+[16:19:55.528] [INFO   ]    최대 시도: 10
+[16:19:55.528] [INFO   ] ------------------------------------------------------------
+[16:19:55.528] [INFO   ] 올려야 할 글자 수: 3글자 (공백 포함)
+[16:19:55.528] [INFO   ] 
+[16:19:55.528] [INFO   ] 시도 #1
+[16:19:55.528] [INFO   ]    현재 자간: -1.0
+[16:19:55.528] [INFO   ]    남은 여유: 99.0 (최소값까지)
+[16:19:55.528] [INFO   ] 
+[16:19:55.528] [INFO   ] [_adjust_spacing] 자간 조정 시작
+[16:19:55.528] [INFO   ]    입력: para_id=1, line_index=0, spacing=-1.0
+[16:19:55.531] [CURSOR ] [CURSOR] SAVE: list=0, para=1, pos=112 | _adjust_spacing 시작 (line_index=0)
+[16:19:55.531] [INFO   ]    [2] 블록 선택 시작: block.select_line_by_index(1, 0)
+[16:19:55.554] [CURSOR ] [CURSOR] SELECT: list=0, para=1, pos=50 | block.select_line_by_index(1, 0) 후
+[16:19:55.554] [CURSOR ] [CURSOR_CHG] select_line_by_index:
+[16:19:55.554] [CURSOR ]    이전: list=0, para=1, pos=112
+[16:19:55.554] [CURSOR ]    이후: list=0, para=1, pos=50
+[16:19:55.554] [CURSOR ]    >> pos 변경: 112 -> 50 (차이: -62)
+[16:19:55.574] [INFO   ]    [4] 선택된 텍스트 (미리보기): '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운'
+[16:19:55.574] [INFO   ]        선택된 텍스트 길이: 50
+[16:19:55.574] [INFO   ]        선택된 텍스트 repr: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운'
+[16:19:55.574] [INFO   ]    [5] HParameterSet.HCharShape 가져오기
+[16:19:55.582] [INFO   ]    [6] HAction.GetDefault('CharShape', pset.HSet) 호출
+[16:19:55.587] [INFO   ]    [7] 자간 값 설정:
+[16:19:55.587] [INFO   ]        - SpacingHangul = -1.0
+[16:19:55.587] [INFO   ]        - SpacingLatin = -1.0
+[16:19:55.587] [INFO   ]    [8] HAction.Execute('CharShape', pset.HSet) 호출
+[16:19:55.603] [CURSOR ] [CURSOR] EXECUTE: list=0, para=1, pos=50 | HAction.Execute('CharShape') 후
+[16:19:55.603] [CURSOR ] [CURSOR_CHG] CharShape Execute: 위치 변경 없음 (para=1, pos=50)
+[16:19:55.603] [INFO   ]    [10] 블록 선택 해제: block.cancel()
+[16:19:55.611] [CURSOR ] [CURSOR] CANCEL: list=0, para=1, pos=50 | block.cancel() 후
+[16:19:55.611] [CURSOR ] [CURSOR_CHG] block.cancel: 위치 변경 없음 (para=1, pos=50)
+[16:19:55.611] [INFO   ]    [12] 레이아웃 재계산 대기 (0.025초)
+[16:19:55.637] [CURSOR ] [CURSOR] FINAL: list=0, para=1, pos=50 | _adjust_spacing 완료
+[16:19:55.637] [CURSOR ] [CURSOR_CHG] _adjust_spacing 전체:
+[16:19:55.637] [CURSOR ]    이전: list=0, para=1, pos=112
+[16:19:55.637] [CURSOR ]    이후: list=0, para=1, pos=50
+[16:19:55.637] [CURSOR ]    >> pos 변경: 112 -> 50 (차이: -62)
+[16:19:55.637] [INFO   ] [_adjust_spacing] 완료: 성공
+[16:19:55.637] [INFO   ] 
+[16:19:55.637] [INFO   ] [_get_line_info] 문단 줄 정보 수집 시작: para_id=1
+[16:19:55.638] [INFO   ]    [1] 현재 커서 위치 저장: list=0, para=1, pos=50
+[16:19:55.638] [INFO   ]    [2] BlockSelector._get_line_starts(1) 호출
+[16:19:55.652] [INFO   ]    [3] 결과: line_starts=[0, 51, 98], para_end=112
+[16:19:55.652] [INFO   ]    [4] _get_line_starts 후 커서 위치: list=0, para=1, pos=50
+[16:19:55.652] [INFO   ]    [5] 커서 위치 변경 없음
+[16:19:55.652] [INFO   ] [_get_line_info] 완료: line_count=3
+[16:19:55.652] [INFO   ] _get_line_text: para_id=1, line_index=0, start_pos=0, end_pos=51
+[16:19:55.652] [CURSOR ] [CURSOR] SAVE: list=0, para=1, pos=50 | _get_line_text 시작 (line_index=0)
+[16:19:55.652] [INFO   ]    [2] 줄 시작 위치로 이동: SetPos(0, 1, 0)
+[16:19:55.652] [CURSOR ] [CURSOR] MOVE: list=0, para=1, pos=0 | SetPos(0, 1, 0) 후
+[16:19:55.652] [CURSOR ] [CURSOR_CHG] SetPos (줄 시작):
+[16:19:55.652] [CURSOR ]    이전: list=0, para=1, pos=50
+[16:19:55.652] [CURSOR ]    이후: list=0, para=1, pos=0
+[16:19:55.652] [CURSOR ]    >> pos 변경: 50 -> 0 (차이: -50)
+[16:19:55.652] [INFO   ]    [4] 범위 선택: SelectText(1, 0, 1, 51)
+[16:19:55.659] [CURSOR ] [CURSOR] SELECT: list=0, para=1, pos=51 | SelectText(1, 0, 1, 51) 후
+[16:19:55.659] [CURSOR ] [CURSOR_CHG] SelectText:
+[16:19:55.659] [CURSOR ]    이전: list=0, para=1, pos=0
+[16:19:55.659] [CURSOR ]    이후: list=0, para=1, pos=51
+[16:19:55.659] [CURSOR ]    >> pos 변경: 0 -> 51 (차이: 51)
+[16:19:55.659] [INFO   ]    [5] GetTextFile('TEXT', 'saveblock') 호출
+[16:19:55.678] [SELECT ] [SELECT] GetTextFile
+[16:19:55.678] [SELECT ]    범위: para 1:0 ~ para 1:51
+[16:19:55.678] [SELECT ]    문자 수: 51
+[16:19:55.678] [SELECT ]    결과 텍스트: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발...' (길이: 51)
+[16:19:55.678] [SELECT ]    결과 repr: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운'
+[16:19:55.678] [INFO   ]    [7] 선택 해제: Cancel
+[16:19:55.693] [CURSOR ] [CURSOR] CANCEL: list=0, para=1, pos=51 | HAction.Run('Cancel') 후
+[16:19:55.693] [CURSOR ] [CURSOR_CHG] Cancel: 위치 변경 없음 (para=1, pos=51)
+[16:19:55.693] [INFO   ]    [8] 원래 위치 복원: SetPos(0, 1, 50)
+[16:19:55.693] [CURSOR ] [CURSOR] RESTORE: list=0, para=1, pos=50 | 원래 위치 복원 후
+[16:19:55.693] [CURSOR ] [CURSOR_CHG] SetPos (복원):
+[16:19:55.693] [CURSOR ]    이전: list=0, para=1, pos=51
+[16:19:55.693] [CURSOR ]    이후: list=0, para=1, pos=50
+[16:19:55.693] [CURSOR ]    >> pos 변경: 51 -> 50 (차이: -1)
+[16:19:55.693] [INFO   ]    [10] 개행 문자 처리 전: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운항'
+[16:19:55.693] [INFO   ]    [11] 개행 문자 처리 후: ' ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운항'
+[16:19:55.693] [INFO   ] _get_line_text: 최종 텍스트 = ' ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운항' (길이: 50)
+[16:19:55.693] [INFO   ] 자간 조정 후 이전 줄: ' 필요하며, 이는 선박의 안전한 운항'
+[16:19:55.693] [INFO   ] 이전 줄 끝 문자 (repr): '항'
+[16:19:55.693] [INFO   ] 아직 공백 아님, 계속 시도...
+[16:19:55.693] [INFO   ] 
+[16:19:55.693] [INFO   ] 시도 #2
+[16:19:55.693] [INFO   ]    현재 자간: -2.0
+[16:19:55.693] [INFO   ]    남은 여유: 98.0 (최소값까지)
+[16:19:55.693] [INFO   ] 
+[16:19:55.693] [INFO   ] [_adjust_spacing] 자간 조정 시작
+[16:19:55.693] [INFO   ]    입력: para_id=1, line_index=0, spacing=-2.0
+[16:19:55.693] [CURSOR ] [CURSOR] SAVE: list=0, para=1, pos=50 | _adjust_spacing 시작 (line_index=0)
+[16:19:55.693] [INFO   ]    [2] 블록 선택 시작: block.select_line_by_index(1, 0)
+[16:19:55.717] [CURSOR ] [CURSOR] SELECT: list=0, para=1, pos=51 | block.select_line_by_index(1, 0) 후
+[16:19:55.717] [CURSOR ] [CURSOR_CHG] select_line_by_index:
+[16:19:55.717] [CURSOR ]    이전: list=0, para=1, pos=50
+[16:19:55.717] [CURSOR ]    이후: list=0, para=1, pos=51
+[16:19:55.717] [CURSOR ]    >> pos 변경: 50 -> 51 (차이: 1)
+[16:19:55.733] [INFO   ]    [4] 선택된 텍스트 (미리보기): '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운...'
+[16:19:55.733] [INFO   ]        선택된 텍스트 길이: 51
+[16:19:55.733] [INFO   ]        선택된 텍스트 repr: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운항'
+[16:19:55.733] [INFO   ]    [5] HParameterSet.HCharShape 가져오기
+[16:19:55.740] [INFO   ]    [6] HAction.GetDefault('CharShape', pset.HSet) 호출
+[16:19:55.744] [INFO   ]    [7] 자간 값 설정:
+[16:19:55.745] [INFO   ]        - SpacingHangul = -2.0
+[16:19:55.745] [INFO   ]        - SpacingLatin = -2.0
+[16:19:55.745] [INFO   ]    [8] HAction.Execute('CharShape', pset.HSet) 호출
+[16:19:55.760] [CURSOR ] [CURSOR] EXECUTE: list=0, para=1, pos=51 | HAction.Execute('CharShape') 후
+[16:19:55.760] [CURSOR ] [CURSOR_CHG] CharShape Execute: 위치 변경 없음 (para=1, pos=51)
+[16:19:55.760] [INFO   ]    [10] 블록 선택 해제: block.cancel()
+[16:19:55.768] [CURSOR ] [CURSOR] CANCEL: list=0, para=1, pos=51 | block.cancel() 후
+[16:19:55.768] [CURSOR ] [CURSOR_CHG] block.cancel: 위치 변경 없음 (para=1, pos=51)
+[16:19:55.768] [INFO   ]    [12] 레이아웃 재계산 대기 (0.025초)
+[16:19:55.794] [CURSOR ] [CURSOR] FINAL: list=0, para=1, pos=51 | _adjust_spacing 완료
+[16:19:55.794] [CURSOR ] [CURSOR_CHG] _adjust_spacing 전체:
+[16:19:55.794] [CURSOR ]    이전: list=0, para=1, pos=50
+[16:19:55.794] [CURSOR ]    이후: list=0, para=1, pos=51
+[16:19:55.794] [CURSOR ]    >> pos 변경: 50 -> 51 (차이: 1)
+[16:19:55.794] [INFO   ] [_adjust_spacing] 완료: 성공
+[16:19:55.795] [INFO   ] 
+[16:19:55.795] [INFO   ] [_get_line_info] 문단 줄 정보 수집 시작: para_id=1
+[16:19:55.795] [INFO   ]    [1] 현재 커서 위치 저장: list=0, para=1, pos=51
+[16:19:55.795] [INFO   ]    [2] BlockSelector._get_line_starts(1) 호출
+[16:19:55.810] [INFO   ]    [3] 결과: line_starts=[0, 51, 98], para_end=112
+[16:19:55.810] [INFO   ]    [4] _get_line_starts 후 커서 위치: list=0, para=1, pos=51
+[16:19:55.811] [INFO   ]    [5] 커서 위치 변경 없음
+[16:19:55.811] [INFO   ] [_get_line_info] 완료: line_count=3
+[16:19:55.811] [INFO   ] _get_line_text: para_id=1, line_index=0, start_pos=0, end_pos=51
+[16:19:55.811] [CURSOR ] [CURSOR] SAVE: list=0, para=1, pos=51 | _get_line_text 시작 (line_index=0)
+[16:19:55.811] [INFO   ]    [2] 줄 시작 위치로 이동: SetPos(0, 1, 0)
+[16:19:55.811] [CURSOR ] [CURSOR] MOVE: list=0, para=1, pos=0 | SetPos(0, 1, 0) 후
+[16:19:55.811] [CURSOR ] [CURSOR_CHG] SetPos (줄 시작):
+[16:19:55.811] [CURSOR ]    이전: list=0, para=1, pos=51
+[16:19:55.811] [CURSOR ]    이후: list=0, para=1, pos=0
+[16:19:55.811] [CURSOR ]    >> pos 변경: 51 -> 0 (차이: -51)
+[16:19:55.811] [INFO   ]    [4] 범위 선택: SelectText(1, 0, 1, 51)
+[16:19:55.818] [CURSOR ] [CURSOR] SELECT: list=0, para=1, pos=51 | SelectText(1, 0, 1, 51) 후
+[16:19:55.818] [CURSOR ] [CURSOR_CHG] SelectText:
+[16:19:55.818] [CURSOR ]    이전: list=0, para=1, pos=0
+[16:19:55.818] [CURSOR ]    이후: list=0, para=1, pos=51
+[16:19:55.818] [CURSOR ]    >> pos 변경: 0 -> 51 (차이: 51)
+[16:19:55.818] [INFO   ]    [5] GetTextFile('TEXT', 'saveblock') 호출
+[16:19:55.833] [SELECT ] [SELECT] GetTextFile
+[16:19:55.833] [SELECT ]    범위: para 1:0 ~ para 1:51
+[16:19:55.833] [SELECT ]    문자 수: 51
+[16:19:55.833] [SELECT ]    결과 텍스트: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발...' (길이: 51)
+[16:19:55.833] [SELECT ]    결과 repr: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운'
+[16:19:55.833] [INFO   ]    [7] 선택 해제: Cancel
+[16:19:55.847] [CURSOR ] [CURSOR] CANCEL: list=0, para=1, pos=51 | HAction.Run('Cancel') 후
+[16:19:55.847] [CURSOR ] [CURSOR_CHG] Cancel: 위치 변경 없음 (para=1, pos=51)
+[16:19:55.847] [INFO   ]    [8] 원래 위치 복원: SetPos(0, 1, 51)
+[16:19:55.848] [CURSOR ] [CURSOR] RESTORE: list=0, para=1, pos=51 | 원래 위치 복원 후
+[16:19:55.848] [CURSOR ] [CURSOR_CHG] SetPos (복원): 위치 변경 없음 (para=1, pos=51)
+[16:19:55.848] [INFO   ]    [10] 개행 문자 처리 전: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운항'
+[16:19:55.848] [INFO   ]    [11] 개행 문자 처리 후: ' ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운항'
+[16:19:55.848] [INFO   ] _get_line_text: 최종 텍스트 = ' ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운항' (길이: 50)
+[16:19:55.848] [INFO   ] 자간 조정 후 이전 줄: ' 필요하며, 이는 선박의 안전한 운항'
+[16:19:55.848] [INFO   ] 이전 줄 끝 문자 (repr): '항'
+[16:19:55.848] [INFO   ] 아직 공백 아님, 계속 시도...
+[16:19:55.848] [INFO   ] 
+[16:19:55.848] [INFO   ] 시도 #3
+[16:19:55.848] [INFO   ]    현재 자간: -3.0
+[16:19:55.848] [INFO   ]    남은 여유: 97.0 (최소값까지)
+[16:19:55.848] [INFO   ] 
+[16:19:55.848] [INFO   ] [_adjust_spacing] 자간 조정 시작
+[16:19:55.848] [INFO   ]    입력: para_id=1, line_index=0, spacing=-3.0
+[16:19:55.848] [CURSOR ] [CURSOR] SAVE: list=0, para=1, pos=51 | _adjust_spacing 시작 (line_index=0)
+[16:19:55.848] [INFO   ]    [2] 블록 선택 시작: block.select_line_by_index(1, 0)
+[16:19:55.867] [CURSOR ] [CURSOR] SELECT: list=0, para=1, pos=51 | block.select_line_by_index(1, 0) 후
+[16:19:55.867] [CURSOR ] [CURSOR_CHG] select_line_by_index: 위치 변경 없음 (para=1, pos=51)
+[16:19:55.881] [INFO   ]    [4] 선택된 텍스트 (미리보기): '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운...'
+[16:19:55.881] [INFO   ]        선택된 텍스트 길이: 51
+[16:19:55.881] [INFO   ]        선택된 텍스트 repr: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운항'
+[16:19:55.881] [INFO   ]    [5] HParameterSet.HCharShape 가져오기
+[16:19:55.885] [INFO   ]    [6] HAction.GetDefault('CharShape', pset.HSet) 호출
+[16:19:55.889] [INFO   ]    [7] 자간 값 설정:
+[16:19:55.889] [INFO   ]        - SpacingHangul = -3.0
+[16:19:55.889] [INFO   ]        - SpacingLatin = -3.0
+[16:19:55.889] [INFO   ]    [8] HAction.Execute('CharShape', pset.HSet) 호출
+[16:19:55.905] [CURSOR ] [CURSOR] EXECUTE: list=0, para=1, pos=51 | HAction.Execute('CharShape') 후
+[16:19:55.905] [CURSOR ] [CURSOR_CHG] CharShape Execute: 위치 변경 없음 (para=1, pos=51)
+[16:19:55.905] [INFO   ]    [10] 블록 선택 해제: block.cancel()
+[16:19:55.913] [CURSOR ] [CURSOR] CANCEL: list=0, para=1, pos=51 | block.cancel() 후
+[16:19:55.913] [CURSOR ] [CURSOR_CHG] block.cancel: 위치 변경 없음 (para=1, pos=51)
+[16:19:55.913] [INFO   ]    [12] 레이아웃 재계산 대기 (0.025초)
+[16:19:55.939] [CURSOR ] [CURSOR] FINAL: list=0, para=1, pos=51 | _adjust_spacing 완료
+[16:19:55.939] [CURSOR ] [CURSOR_CHG] _adjust_spacing 전체: 위치 변경 없음 (para=1, pos=51)
+[16:19:55.939] [INFO   ] [_adjust_spacing] 완료: 성공
+[16:19:55.939] [INFO   ] 
+[16:19:55.939] [INFO   ] [_get_line_info] 문단 줄 정보 수집 시작: para_id=1
+[16:19:55.939] [INFO   ]    [1] 현재 커서 위치 저장: list=0, para=1, pos=51
+[16:19:55.939] [INFO   ]    [2] BlockSelector._get_line_starts(1) 호출
+[16:19:55.954] [INFO   ]    [3] 결과: line_starts=[0, 51, 98], para_end=112
+[16:19:55.954] [INFO   ]    [4] _get_line_starts 후 커서 위치: list=0, para=1, pos=51
+[16:19:55.954] [INFO   ]    [5] 커서 위치 변경 없음
+[16:19:55.954] [INFO   ] [_get_line_info] 완료: line_count=3
+[16:19:55.954] [INFO   ] _get_line_text: para_id=1, line_index=0, start_pos=0, end_pos=51
+[16:19:55.954] [CURSOR ] [CURSOR] SAVE: list=0, para=1, pos=51 | _get_line_text 시작 (line_index=0)
+[16:19:55.954] [INFO   ]    [2] 줄 시작 위치로 이동: SetPos(0, 1, 0)
+[16:19:55.954] [CURSOR ] [CURSOR] MOVE: list=0, para=1, pos=0 | SetPos(0, 1, 0) 후
+[16:19:55.954] [CURSOR ] [CURSOR_CHG] SetPos (줄 시작):
+[16:19:55.954] [CURSOR ]    이전: list=0, para=1, pos=51
+[16:19:55.954] [CURSOR ]    이후: list=0, para=1, pos=0
+[16:19:55.954] [CURSOR ]    >> pos 변경: 51 -> 0 (차이: -51)
+[16:19:55.954] [INFO   ]    [4] 범위 선택: SelectText(1, 0, 1, 51)
+[16:19:55.960] [CURSOR ] [CURSOR] SELECT: list=0, para=1, pos=51 | SelectText(1, 0, 1, 51) 후
+[16:19:55.960] [CURSOR ] [CURSOR_CHG] SelectText:
+[16:19:55.961] [CURSOR ]    이전: list=0, para=1, pos=0
+[16:19:55.961] [CURSOR ]    이후: list=0, para=1, pos=51
+[16:19:55.961] [CURSOR ]    >> pos 변경: 0 -> 51 (차이: 51)
+[16:19:55.961] [INFO   ]    [5] GetTextFile('TEXT', 'saveblock') 호출
+[16:19:55.974] [SELECT ] [SELECT] GetTextFile
+[16:19:55.974] [SELECT ]    범위: para 1:0 ~ para 1:51
+[16:19:55.974] [SELECT ]    문자 수: 51
+[16:19:55.974] [SELECT ]    결과 텍스트: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발...' (길이: 51)
+[16:19:55.974] [SELECT ]    결과 repr: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운'
+[16:19:55.974] [INFO   ]    [7] 선택 해제: Cancel
+[16:19:55.983] [CURSOR ] [CURSOR] CANCEL: list=0, para=1, pos=51 | HAction.Run('Cancel') 후
+[16:19:55.983] [CURSOR ] [CURSOR_CHG] Cancel: 위치 변경 없음 (para=1, pos=51)
+[16:19:55.983] [INFO   ]    [8] 원래 위치 복원: SetPos(0, 1, 51)
+[16:19:55.983] [CURSOR ] [CURSOR] RESTORE: list=0, para=1, pos=51 | 원래 위치 복원 후
+[16:19:55.983] [CURSOR ] [CURSOR_CHG] SetPos (복원): 위치 변경 없음 (para=1, pos=51)
+[16:19:55.983] [INFO   ]    [10] 개행 문자 처리 전: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운항'
+[16:19:55.983] [INFO   ]    [11] 개행 문자 처리 후: ' ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운항'
+[16:19:55.983] [INFO   ] _get_line_text: 최종 텍스트 = ' ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운항' (길이: 50)
+[16:19:55.983] [INFO   ] 자간 조정 후 이전 줄: ' 필요하며, 이는 선박의 안전한 운항'
+[16:19:55.983] [INFO   ] 이전 줄 끝 문자 (repr): '항'
+[16:19:55.983] [INFO   ] 아직 공백 아님, 계속 시도...
+[16:19:55.983] [INFO   ] 
+[16:19:55.983] [INFO   ] 시도 #4
+[16:19:55.983] [INFO   ]    현재 자간: -4.0
+[16:19:55.983] [INFO   ]    남은 여유: 96.0 (최소값까지)
+[16:19:55.983] [INFO   ] 
+[16:19:55.983] [INFO   ] [_adjust_spacing] 자간 조정 시작
+[16:19:55.983] [INFO   ]    입력: para_id=1, line_index=0, spacing=-4.0
+[16:19:55.983] [CURSOR ] [CURSOR] SAVE: list=0, para=1, pos=51 | _adjust_spacing 시작 (line_index=0)
+[16:19:55.983] [INFO   ]    [2] 블록 선택 시작: block.select_line_by_index(1, 0)
+[16:19:56.003] [CURSOR ] [CURSOR] SELECT: list=0, para=1, pos=51 | block.select_line_by_index(1, 0) 후
+[16:19:56.003] [CURSOR ] [CURSOR_CHG] select_line_by_index: 위치 변경 없음 (para=1, pos=51)
+[16:19:56.019] [INFO   ]    [4] 선택된 텍스트 (미리보기): '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운...'
+[16:19:56.019] [INFO   ]        선택된 텍스트 길이: 51
+[16:19:56.019] [INFO   ]        선택된 텍스트 repr: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운항'
+[16:19:56.019] [INFO   ]    [5] HParameterSet.HCharShape 가져오기
+[16:19:56.023] [INFO   ]    [6] HAction.GetDefault('CharShape', pset.HSet) 호출
+[16:19:56.027] [INFO   ]    [7] 자간 값 설정:
+[16:19:56.027] [INFO   ]        - SpacingHangul = -4.0
+[16:19:56.027] [INFO   ]        - SpacingLatin = -4.0
+[16:19:56.028] [INFO   ]    [8] HAction.Execute('CharShape', pset.HSet) 호출
+[16:19:56.045] [CURSOR ] [CURSOR] EXECUTE: list=0, para=1, pos=51 | HAction.Execute('CharShape') 후
+[16:19:56.045] [CURSOR ] [CURSOR_CHG] CharShape Execute: 위치 변경 없음 (para=1, pos=51)
+[16:19:56.045] [INFO   ]    [10] 블록 선택 해제: block.cancel()
+[16:19:56.053] [CURSOR ] [CURSOR] CANCEL: list=0, para=1, pos=51 | block.cancel() 후
+[16:19:56.053] [CURSOR ] [CURSOR_CHG] block.cancel: 위치 변경 없음 (para=1, pos=51)
+[16:19:56.053] [INFO   ]    [12] 레이아웃 재계산 대기 (0.025초)
+[16:19:56.079] [CURSOR ] [CURSOR] FINAL: list=0, para=1, pos=51 | _adjust_spacing 완료
+[16:19:56.079] [CURSOR ] [CURSOR_CHG] _adjust_spacing 전체: 위치 변경 없음 (para=1, pos=51)
+[16:19:56.079] [INFO   ] [_adjust_spacing] 완료: 성공
+[16:19:56.079] [INFO   ] 
+[16:19:56.079] [INFO   ] [_get_line_info] 문단 줄 정보 수집 시작: para_id=1
+[16:19:56.079] [INFO   ]    [1] 현재 커서 위치 저장: list=0, para=1, pos=51
+[16:19:56.079] [INFO   ]    [2] BlockSelector._get_line_starts(1) 호출
+[16:19:56.094] [INFO   ]    [3] 결과: line_starts=[0, 53, 101], para_end=112
+[16:19:56.094] [INFO   ]    [4] _get_line_starts 후 커서 위치: list=0, para=1, pos=51
+[16:19:56.094] [INFO   ]    [5] 커서 위치 변경 없음
+[16:19:56.094] [INFO   ] [_get_line_info] 완료: line_count=3
+[16:19:56.094] [INFO   ] _get_line_text: para_id=1, line_index=0, start_pos=0, end_pos=53
+[16:19:56.094] [CURSOR ] [CURSOR] SAVE: list=0, para=1, pos=51 | _get_line_text 시작 (line_index=0)
+[16:19:56.094] [INFO   ]    [2] 줄 시작 위치로 이동: SetPos(0, 1, 0)
+[16:19:56.094] [CURSOR ] [CURSOR] MOVE: list=0, para=1, pos=0 | SetPos(0, 1, 0) 후
+[16:19:56.095] [CURSOR ] [CURSOR_CHG] SetPos (줄 시작):
+[16:19:56.095] [CURSOR ]    이전: list=0, para=1, pos=51
+[16:19:56.095] [CURSOR ]    이후: list=0, para=1, pos=0
+[16:19:56.095] [CURSOR ]    >> pos 변경: 51 -> 0 (차이: -51)
+[16:19:56.095] [INFO   ]    [4] 범위 선택: SelectText(1, 0, 1, 53)
+[16:19:56.101] [CURSOR ] [CURSOR] SELECT: list=0, para=1, pos=53 | SelectText(1, 0, 1, 53) 후
+[16:19:56.101] [CURSOR ] [CURSOR_CHG] SelectText:
+[16:19:56.101] [CURSOR ]    이전: list=0, para=1, pos=0
+[16:19:56.101] [CURSOR ]    이후: list=0, para=1, pos=53
+[16:19:56.101] [CURSOR ]    >> pos 변경: 0 -> 53 (차이: 53)
+[16:19:56.101] [INFO   ]    [5] GetTextFile('TEXT', 'saveblock') 호출
+[16:19:56.135] [SELECT ] [SELECT] GetTextFile
+[16:19:56.135] [SELECT ]    범위: para 1:0 ~ para 1:53
+[16:19:56.135] [SELECT ]    문자 수: 53
+[16:19:56.135] [SELECT ]    결과 텍스트: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발...' (길이: 53)
+[16:19:56.135] [SELECT ]    결과 repr: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운'
+[16:19:56.135] [INFO   ]    [7] 선택 해제: Cancel
+[16:19:56.144] [CURSOR ] [CURSOR] CANCEL: list=0, para=1, pos=53 | HAction.Run('Cancel') 후
+[16:19:56.144] [CURSOR ] [CURSOR_CHG] Cancel: 위치 변경 없음 (para=1, pos=53)
+[16:19:56.144] [INFO   ]    [8] 원래 위치 복원: SetPos(0, 1, 51)
+[16:19:56.145] [CURSOR ] [CURSOR] RESTORE: list=0, para=1, pos=51 | 원래 위치 복원 후
+[16:19:56.145] [CURSOR ] [CURSOR_CHG] SetPos (복원):
+[16:19:56.145] [CURSOR ]    이전: list=0, para=1, pos=53
+[16:19:56.145] [CURSOR ]    이후: list=0, para=1, pos=51
+[16:19:56.145] [CURSOR ]    >> pos 변경: 53 -> 51 (차이: -2)
+[16:19:56.145] [INFO   ]    [10] 개행 문자 처리 전: '  ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운항을 '
+[16:19:56.145] [INFO   ]    [11] 개행 문자 처리 후: ' ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운항을 '
+[16:19:56.145] [INFO   ] _get_line_text: 최종 텍스트 = ' ○ 자율운항선박을 육상에서 관제하기 위한 기술 개발이 필요하며, 이는 선박의 안전한 운항을 ' (길이: 52)
+[16:19:56.145] [INFO   ] 자간 조정 후 이전 줄: '요하며, 이는 선박의 안전한 운항을 '
+[16:19:56.145] [INFO   ] 이전 줄 끝 문자 (repr): ' '
+[16:19:56.145] [INFO   ] 성공: 이전 줄 끝이 공백
+[16:19:56.145] [INFO   ] 
+[16:19:56.145] [INFO   ] 줄 2 처리 성공!
+[16:19:56.145] [INFO   ]    최종 자간: -4.0
+[16:19:56.145] [INFO   ]    시도 횟수: 4
+[16:19:56.145] [INFO   ] 
+[16:19:56.145] [INFO   ] ######################################################################
+[16:19:56.145] [INFO   ] # 메인 루프 반복 #2
+[16:19:56.145] [INFO   ] # line_idx=1, total_lines=3
+[16:19:56.145] [INFO   ] ######################################################################
+[16:19:56.145] [INFO   ] [루프 시작] 현재 커서 위치: list=0, para=1, pos=51
+[16:19:56.145] [INFO   ] [루프] 현재 줄 수: 3
+[16:19:56.145] [INFO   ] _get_line_text: para_id=1, line_index=1, start_pos=53, end_pos=101
+[16:19:56.145] [CURSOR ] [CURSOR] SAVE: list=0, para=1, pos=51 | _get_line_text 시작 (line_index=1)
+[16:19:56.145] [INFO   ]    [2] 줄 시작 위치로 이동: SetPos(0, 1, 53)
+[16:19:56.145] [CURSOR ] [CURSOR] MOVE: list=0, para=1, pos=53 | SetPos(0, 1, 53) 후
+[16:19:56.145] [CURSOR ] [CURSOR_CHG] SetPos (줄 시작):
+[16:19:56.145] [CURSOR ]    이전: list=0, para=1, pos=51
+[16:19:56.145] [CURSOR ]    이후: list=0, para=1, pos=53
+[16:19:56.145] [CURSOR ]    >> pos 변경: 51 -> 53 (차이: 2)
+[16:19:56.145] [INFO   ]    [4] 범위 선택: SelectText(1, 53, 1, 101)
+[16:19:56.153] [CURSOR ] [CURSOR] SELECT: list=0, para=1, pos=101 | SelectText(1, 53, 1, 101) 후
+[16:19:56.153] [CURSOR ] [CURSOR_CHG] SelectText:
+[16:19:56.153] [CURSOR ]    이전: list=0, para=1, pos=53
+[16:19:56.153] [CURSOR ]    이후: list=0, para=1, pos=101
+[16:19:56.153] [CURSOR ]    >> pos 변경: 53 -> 101 (차이: 48)
+[16:19:56.153] [INFO   ]    [5] GetTextFile('TEXT', 'saveblock') 호출
+[16:19:56.185] [SELECT ] [SELECT] GetTextFile
+[16:19:56.185] [SELECT ]    범위: para 1:53 ~ para 1:101
+[16:19:56.185] [SELECT ]    문자 수: 48
+[16:19:56.185] [SELECT ]    결과 텍스트: '보장하기 위한 핵심 요소로서 24시간 실시간 모니터링과...' (길이: 48)
+[16:19:56.185] [SELECT ]    결과 repr: '보장하기 위한 핵심 요소로서 24시간 실시간 모니터링과 원격 제어가 가능한 통합 관제 '
+[16:19:56.185] [INFO   ]    [7] 선택 해제: Cancel
+[16:19:56.194] [CURSOR ] [CURSOR] CANCEL: list=0, para=1, pos=101 | HAction.Run('Cancel') 후
+[16:19:56.194] [CURSOR ] [CURSOR_CHG] Cancel: 위치 변경 없음 (para=1, pos=101)
+[16:19:56.194] [INFO   ]    [8] 원래 위치 복원: SetPos(0, 1, 51)
+[16:19:56.194] [CURSOR ] [CURSOR] RESTORE: list=0, para=1, pos=51 | 원래 위치 복원 후
+[16:19:56.194] [CURSOR ] [CURSOR_CHG] SetPos (복원):
+[16:19:56.194] [CURSOR ]    이전: list=0, para=1, pos=101
+[16:19:56.194] [CURSOR ]    이후: list=0, para=1, pos=51
+[16:19:56.194] [CURSOR ]    >> pos 변경: 101 -> 51 (차이: -50)
+[16:19:56.194] [INFO   ]    [10] 개행 문자 처리 전: '보장하기 위한 핵심 요소로서 24시간 실시간 모니터링과 원격 제어가 가능한 통합 관제 '
+[16:19:56.194] [INFO   ]    [11] 개행 문자 처리 후: '보장하기 위한 핵심 요소로서 24시간 실시간 모니터링과 원격 제어가 가능한 통합 관제 '
+[16:19:56.194] [INFO   ] _get_line_text: 최종 텍스트 = '보장하기 위한 핵심 요소로서 24시간 실시간 모니터링과 원격 제어가 가능한 통합 관제 ' (길이: 48)
+[16:19:56.194] [INFO   ] 
+--- 줄 2/3 ---
+[16:19:56.194] [INFO   ] 텍스트 전체: '보장하기 위한 핵심 요소로서 24시간 실시간 모니터링과 원격 제어가 가능한 통합 관제 '
+[16:19:56.194] [INFO   ] 텍스트 길이: 48
+[16:19:56.194] [INFO   ] 첫 공백 위치: 4
+[16:19:56.194] [INFO   ]    공백 앞 텍스트: '보장하기' (길이: 4)
+[16:19:56.194] [INFO   ]    패턴: 공백 앞 4글자 (처리 대상: 0~1글자만)
+[16:19:56.194] [INFO   ] 건너뜀: 처리 패턴 불일치
+[16:19:56.194] [INFO   ] 
+[16:19:56.194] [INFO   ] ######################################################################
+[16:19:56.194] [INFO   ] # 메인 루프 반복 #3
+[16:19:56.194] [INFO   ] # line_idx=2, total_lines=3
+[16:19:56.194] [INFO   ] ######################################################################
+[16:19:56.194] [INFO   ] [루프 시작] 현재 커서 위치: list=0, para=1, pos=51
+[16:19:56.194] [INFO   ] [루프] 현재 줄 수: 3
+[16:19:56.194] [INFO   ] _get_line_text: para_id=1, line_index=2, start_pos=101, end_pos=112
+[16:19:56.195] [CURSOR ] [CURSOR] SAVE: list=0, para=1, pos=51 | _get_line_text 시작 (line_index=2)
+[16:19:56.195] [INFO   ]    [2] 줄 시작 위치로 이동: SetPos(0, 1, 101)
+[16:19:56.195] [CURSOR ] [CURSOR] MOVE: list=0, para=1, pos=101 | SetPos(0, 1, 101) 후
+[16:19:56.195] [CURSOR ] [CURSOR_CHG] SetPos (줄 시작):
+[16:19:56.195] [CURSOR ]    이전: list=0, para=1, pos=51
+[16:19:56.195] [CURSOR ]    이후: list=0, para=1, pos=101
+[16:19:56.195] [CURSOR ]    >> pos 변경: 51 -> 101 (차이: 50)
+[16:19:56.195] [INFO   ]    [4] 범위 선택: SelectText(1, 101, 1, 112)
+[16:19:56.202] [CURSOR ] [CURSOR] SELECT: list=0, para=1, pos=112 | SelectText(1, 101, 1, 112) 후
+[16:19:56.202] [CURSOR ] [CURSOR_CHG] SelectText:
+[16:19:56.202] [CURSOR ]    이전: list=0, para=1, pos=101
+[16:19:56.202] [CURSOR ]    이후: list=0, para=1, pos=112
+[16:19:56.202] [CURSOR ]    >> pos 변경: 101 -> 112 (차이: 11)
+[16:19:56.202] [INFO   ]    [5] GetTextFile('TEXT', 'saveblock') 호출
+[16:19:56.228] [SELECT ] [SELECT] GetTextFile
+[16:19:56.228] [SELECT ]    범위: para 1:101 ~ para 1:112
+[16:19:56.228] [SELECT ]    문자 수: 11
+[16:19:56.228] [SELECT ]    결과 텍스트: '시스템 구축이 요구됨' (길이: 11)
+[16:19:56.228] [SELECT ]    결과 repr: '시스템 구축이 요구됨'
+[16:19:56.228] [INFO   ]    [7] 선택 해제: Cancel
+[16:19:56.238] [CURSOR ] [CURSOR] CANCEL: list=0, para=1, pos=112 | HAction.Run('Cancel') 후
+[16:19:56.238] [CURSOR ] [CURSOR_CHG] Cancel: 위치 변경 없음 (para=1, pos=112)
+[16:19:56.238] [INFO   ]    [8] 원래 위치 복원: SetPos(0, 1, 51)
+[16:19:56.238] [CURSOR ] [CURSOR] RESTORE: list=0, para=1, pos=51 | 원래 위치 복원 후
+[16:19:56.238] [CURSOR ] [CURSOR_CHG] SetPos (복원):
+[16:19:56.238] [CURSOR ]    이전: list=0, para=1, pos=112
+[16:19:56.238] [CURSOR ]    이후: list=0, para=1, pos=51
+[16:19:56.238] [CURSOR ]    >> pos 변경: 112 -> 51 (차이: -61)
+[16:19:56.238] [INFO   ]    [10] 개행 문자 처리 전: '시스템 구축이 요구됨'
+[16:19:56.238] [INFO   ]    [11] 개행 문자 처리 후: '시스템 구축이 요구됨'
+[16:19:56.238] [INFO   ] _get_line_text: 최종 텍스트 = '시스템 구축이 요구됨' (길이: 11)
+[16:19:56.238] [INFO   ] 
+--- 줄 3/3 ---
+[16:19:56.238] [INFO   ] 텍스트 전체: '시스템 구축이 요구됨'
+[16:19:56.238] [INFO   ] 텍스트 길이: 11
+[16:19:56.238] [INFO   ] 첫 공백 위치: 3
+[16:19:56.238] [INFO   ]    공백 앞 텍스트: '시스템' (길이: 3)
+[16:19:56.238] [INFO   ]    패턴: 공백 앞 3글자 (처리 대상: 0~1글자만)
+[16:19:56.238] [INFO   ] 건너뜀: 처리 패턴 불일치
+[16:19:56.238] [CURSOR ] [CURSOR] FINAL_MOVE: list=0, para=1, pos=112 | 문단 끝으로 이동: SetPos(0, 1, 112)
+[16:19:56.239] [CURSOR ] [CURSOR_CHG] 문단 끝으로 커서 이동:
+[16:19:56.239] [CURSOR ]    이전: list=0, para=1, pos=51
+[16:19:56.239] [CURSOR ]    이후: list=0, para=1, pos=112
+[16:19:56.239] [CURSOR ]    >> pos 변경: 51 -> 112 (차이: 61)
+[16:19:56.239] [INFO   ] 
+[16:19:56.239] [INFO   ] ============================================================
+[16:19:56.239] [INFO   ] 작업 완료
+[16:19:56.239] [INFO   ] ============================================================
+[16:19:56.239] [INFO   ] 결과 요약:
+[16:19:56.239] [INFO   ]    전체 줄 수: 3
+[16:19:56.239] [INFO   ]    조정 성공: 1 줄
+[16:19:56.239] [INFO   ]    건너뜀: 2 줄
+[16:19:56.239] [INFO   ]    실패: 0 줄
+[16:19:56.239] [INFO   ]    반복 횟수: 3/100
+[16:19:56.239] [INFO   ] 모든 줄 처리 완료!
+[16:19:56.239] [INFO   ] ============================================================
+
+--------------------------------------------------------------------------------
+커서 이력 요약
+--------------------------------------------------------------------------------
+총 커서 추적 횟수: 61
+액션별 횟수:
+   SAVE: 12회
+   SELECT: 12회
+   CANCEL: 12회
+   MOVE: 8회
+   RESTORE: 8회
+   EXECUTE: 4회
+   FINAL: 4회
+   FINAL_MOVE: 1회
+
+최근 커서 이력 (마지막 10개):
+   [16:19:56.145] MOVE: para=1, pos=53 | SetPos(0, 1, 53) 후
+   [16:19:56.153] SELECT: para=1, pos=101 | SelectText(1, 53, 1, 101) 후
+   [16:19:56.194] CANCEL: para=1, pos=101 | HAction.Run('Cancel') 후
+   [16:19:56.194] RESTORE: para=1, pos=51 | 원래 위치 복원 후
+   [16:19:56.195] SAVE: para=1, pos=51 | _get_line_text 시작 (line_index=2)
+   [16:19:56.195] MOVE: para=1, pos=101 | SetPos(0, 1, 101) 후
+   [16:19:56.202] SELECT: para=1, pos=112 | SelectText(1, 101, 1, 112) 후
+   [16:19:56.238] CANCEL: para=1, pos=112 | HAction.Run('Cancel') 후
+   [16:19:56.238] RESTORE: para=1, pos=51 | 원래 위치 복원 후
+   [16:19:56.238] FINAL_MOVE: para=1, pos=112 | 문단 끝으로 이동: SetPos(0, 1, 112)
+
+================================================================================

@@ -74,7 +74,11 @@
       "Bash(git -c user.name=\"kim0814$\" -c user.email=\"kimghw@krs.co.kr\" commit -m \"$\\(cat <<''EOF''\n테이블 크기 계산 개선: 병합 셀 고려한 행/열 수 계산\n\n- 열 수: up=0인 첫 행 셀만 필터링 + colspan 추가\n- 행 수: \\(물리적 셀 + 병합 추가\\) / 열 수\n- 세로 병합 셀 통과 시 다른 행으로 점프하는 문제 해결\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git -c user.name=\"kim0814$\" -c user.email=\"kimghw@krs.co.kr\" commit -m \"$\\(cat <<''EOF''\n테이블 좌표 매핑 기능 추가 \\(build_coordinate_map\\)\n\n- 첫 셀에서 오른쪽으로만 이동하며 \\(row, col\\) → list_id 매핑\n- colspan 셀은 여러 좌표가 같은 list_id\n- 열 수 채우면 다음 행, 마지막 list_id 도달 시 종료\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git -c user.name=\"kim0814$\" -c user.email=\"kimghw@krs.co.kr\" commit -m \"$\\(cat <<''EOF''\n테이블 좌표 매핑 모듈 정리: 불필요한 함수 및 로그 제거\n\n- find_duplicate_neighbors\\(\\), print_duplicate_neighbors\\(\\) 제거\n- print_merged_by_dimensions\\(\\) 제거\n- find_merged_by_dimensions\\(\\) → _get_cell_merge_info\\(\\) 내부 함수로 단순화\n- 불필요한 디버그 로그 제거\n- 핵심 기능만 유지: build_coordinate_map\\(\\), collect_cells_bfs\\(\\), get_table_size\\(\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(git -c user.name=\"kim0814$\" -c user.email=\"kimghw@krs.co.kr\" commit -m \"$\\(cat <<''EOF''\n프로젝트 전체 업데이트\n\n- 문서 및 설정 파일 업데이트\n- 각종 모듈 개선 및 버그 수정\n- HWP API 문서 업데이트\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git -c user.name=\"kim0814$\" -c user.email=\"kimghw@krs.co.kr\" commit -m \"$\\(cat <<''EOF''\n프로젝트 전체 업데이트\n\n- 문서 및 설정 파일 업데이트\n- 각종 모듈 개선 및 버그 수정\n- HWP API 문서 업데이트\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "WebSearch",
+      "Bash(git remote set-url:*)",
+      "Bash(git mv:*)",
+      "Bash(git -c user.name=\"kim0814\" -c user.email=\"kimghw@krs.co.kr\" commit -m \"$\\(cat <<''EOF''\n마크다운 → 한글 변환 내어쓰기 기능 추가\n\n- HEADING_STYLES에 left_margin, hanging 속성 추가\n- set_para_shape\\(\\) 함수로 문단 모양 설정 \\(내어쓰기\\)\n- pt → HWPUNIT 변환: 1pt = 200 HWPUNIT\n- 레벨별 prefix에 선행 공백 적용 \\(□:0개, ○:2개, -:3개\\)\n- 테스트 파일 추가 \\(test_content.md, test_md_to_hwp.py\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   },
   "hooks": {

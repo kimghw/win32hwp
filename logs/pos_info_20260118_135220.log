@@ -1,0 +1,777 @@
+=== HWP 위치 정보 삽입 시작 ===
+로그 파일: C:\win32hwp\logs\pos_info_20260118_135220.log
+
+HWP 인스턴스 연결 중...
+ROT 방식으로 연결 성공
+HWP 연결 성공!
+
+
+=== 컨트롤 목록 ===
+[0] CtrlID: secd, 설명: 구역 정의
+[1] CtrlID: cold, 설명: 단 정의
+[2] CtrlID: pgnp, 설명: 쪽 번호 위치
+[3] CtrlID: nwno, 설명: 새 번호
+[4] CtrlID: tbl, 설명: 표
+     -> 표 컨트롤 저장
+[5] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[6] CtrlID: tbl, 설명: 표
+     -> 표 컨트롤 저장
+[7] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[8] CtrlID: tbl, 설명: 표
+     -> 표 컨트롤 저장
+[9] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[10] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[11] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[12] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[13] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[14] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[15] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+[16] CtrlID: gso, 설명: 그림
+     -> 그리기 개체
+
+총 17개 컨트롤, 표 3개
+
+=== 본문 문단 정보 ===
+[0] L:0, P:0, C:본문
+[1] L:0, P:1, C:nwno
+[2] L:0, P:2, C:nwno
+[3] L:0, P:3, C:nwno
+[4] L:0, P:2, C:nwno
+[5] L:0, P:3, C:nwno
+[6] L:0, P:2, C:nwno
+[7] L:0, P:3, C:nwno
+[8] L:0, P:2, C:nwno
+[9] L:0, P:3, C:nwno
+[10] L:0, P:2, C:nwno
+[11] L:0, P:3, C:nwno
+[12] L:0, P:2, C:nwno
+[13] L:0, P:3, C:nwno
+[14] L:0, P:2, C:nwno
+[15] L:0, P:3, C:nwno
+[16] L:0, P:2, C:nwno
+[17] L:0, P:3, C:nwno
+[18] L:0, P:2, C:nwno
+[19] L:0, P:3, C:nwno
+[20] L:0, P:2, C:nwno
+[21] L:0, P:3, C:nwno
+[22] L:0, P:2, C:nwno
+[23] L:0, P:3, C:nwno
+[24] L:0, P:2, C:nwno
+[25] L:0, P:3, C:nwno
+[26] L:0, P:2, C:nwno
+[27] L:0, P:3, C:nwno
+[28] L:0, P:2, C:nwno
+[29] L:0, P:3, C:nwno
+[30] L:0, P:2, C:nwno
+[31] L:0, P:3, C:nwno
+[32] L:0, P:2, C:nwno
+[33] L:0, P:3, C:nwno
+[34] L:0, P:2, C:nwno
+[35] L:0, P:3, C:nwno
+[36] L:0, P:2, C:nwno
+[37] L:0, P:3, C:nwno
+[38] L:0, P:2, C:nwno
+[39] L:0, P:3, C:nwno
+[40] L:0, P:2, C:nwno
+[41] L:0, P:3, C:nwno
+[42] L:0, P:2, C:nwno
+[43] L:0, P:3, C:nwno
+[44] L:0, P:2, C:nwno
+[45] L:0, P:3, C:nwno
+[46] L:0, P:2, C:nwno
+[47] L:0, P:3, C:nwno
+[48] L:0, P:2, C:nwno
+[49] L:0, P:3, C:nwno
+[50] L:0, P:2, C:nwno
+[51] L:0, P:3, C:nwno
+[52] L:0, P:2, C:nwno
+[53] L:0, P:3, C:nwno
+[54] L:0, P:2, C:nwno
+[55] L:0, P:3, C:nwno
+[56] L:0, P:2, C:nwno
+[57] L:0, P:3, C:nwno
+[58] L:0, P:2, C:nwno
+[59] L:0, P:3, C:nwno
+[60] L:0, P:2, C:nwno
+[61] L:0, P:3, C:nwno
+[62] L:0, P:2, C:nwno
+[63] L:0, P:3, C:nwno
+[64] L:0, P:2, C:nwno
+[65] L:0, P:3, C:nwno
+[66] L:0, P:2, C:nwno
+[67] L:0, P:3, C:nwno
+[68] L:0, P:2, C:nwno
+[69] L:0, P:3, C:nwno
+[70] L:0, P:2, C:nwno
+[71] L:0, P:3, C:nwno
+[72] L:0, P:2, C:nwno
+[73] L:0, P:3, C:nwno
+[74] L:0, P:2, C:nwno
+[75] L:0, P:3, C:nwno
+[76] L:0, P:2, C:nwno
+[77] L:0, P:3, C:nwno
+[78] L:0, P:2, C:nwno
+[79] L:0, P:3, C:nwno
+[80] L:0, P:2, C:nwno
+[81] L:0, P:3, C:nwno
+[82] L:0, P:2, C:nwno
+[83] L:0, P:3, C:nwno
+[84] L:0, P:2, C:nwno
+[85] L:0, P:3, C:nwno
+[86] L:0, P:2, C:nwno
+[87] L:0, P:3, C:nwno
+[88] L:0, P:2, C:nwno
+[89] L:0, P:3, C:nwno
+[90] L:0, P:2, C:nwno
+[91] L:0, P:3, C:nwno
+[92] L:0, P:2, C:nwno
+[93] L:0, P:3, C:nwno
+[94] L:0, P:2, C:nwno
+[95] L:0, P:3, C:nwno
+[96] L:0, P:2, C:nwno
+[97] L:0, P:3, C:nwno
+[98] L:0, P:2, C:nwno
+[99] L:0, P:3, C:nwno
+[100] L:0, P:2, C:nwno
+[101] L:0, P:3, C:nwno
+[102] L:0, P:2, C:nwno
+[103] L:0, P:3, C:nwno
+[104] L:0, P:2, C:nwno
+[105] L:0, P:3, C:nwno
+[106] L:0, P:2, C:nwno
+[107] L:0, P:3, C:nwno
+[108] L:0, P:2, C:nwno
+[109] L:0, P:3, C:nwno
+[110] L:0, P:2, C:nwno
+[111] L:0, P:3, C:nwno
+[112] L:0, P:2, C:nwno
+[113] L:0, P:3, C:nwno
+[114] L:0, P:2, C:nwno
+[115] L:0, P:3, C:nwno
+[116] L:0, P:2, C:nwno
+[117] L:0, P:3, C:nwno
+[118] L:0, P:2, C:nwno
+[119] L:0, P:3, C:nwno
+[120] L:0, P:2, C:nwno
+[121] L:0, P:3, C:nwno
+[122] L:0, P:2, C:nwno
+[123] L:0, P:3, C:nwno
+[124] L:0, P:2, C:nwno
+[125] L:0, P:3, C:nwno
+[126] L:0, P:2, C:nwno
+[127] L:0, P:3, C:nwno
+[128] L:0, P:2, C:nwno
+[129] L:0, P:3, C:nwno
+[130] L:0, P:2, C:nwno
+[131] L:0, P:3, C:nwno
+[132] L:0, P:2, C:nwno
+[133] L:0, P:3, C:nwno
+[134] L:0, P:2, C:nwno
+[135] L:0, P:3, C:nwno
+[136] L:0, P:2, C:nwno
+[137] L:0, P:3, C:nwno
+[138] L:0, P:2, C:nwno
+[139] L:0, P:3, C:nwno
+[140] L:0, P:2, C:nwno
+[141] L:0, P:3, C:nwno
+[142] L:0, P:2, C:nwno
+[143] L:0, P:3, C:nwno
+[144] L:0, P:2, C:nwno
+[145] L:0, P:3, C:nwno
+[146] L:0, P:2, C:nwno
+[147] L:0, P:3, C:nwno
+[148] L:0, P:2, C:nwno
+[149] L:0, P:3, C:nwno
+[150] L:0, P:2, C:nwno
+[151] L:0, P:3, C:nwno
+[152] L:0, P:2, C:nwno
+[153] L:0, P:3, C:nwno
+[154] L:0, P:2, C:nwno
+[155] L:0, P:3, C:nwno
+[156] L:0, P:2, C:nwno
+[157] L:0, P:3, C:nwno
+[158] L:0, P:2, C:nwno
+[159] L:0, P:3, C:nwno
+[160] L:0, P:2, C:nwno
+[161] L:0, P:3, C:nwno
+[162] L:0, P:2, C:nwno
+[163] L:0, P:3, C:nwno
+[164] L:0, P:2, C:nwno
+[165] L:0, P:3, C:nwno
+[166] L:0, P:2, C:nwno
+[167] L:0, P:3, C:nwno
+[168] L:0, P:2, C:nwno
+[169] L:0, P:3, C:nwno
+[170] L:0, P:2, C:nwno
+[171] L:0, P:3, C:nwno
+[172] L:0, P:2, C:nwno
+[173] L:0, P:3, C:nwno
+[174] L:0, P:2, C:nwno
+[175] L:0, P:3, C:nwno
+[176] L:0, P:2, C:nwno
+[177] L:0, P:3, C:nwno
+[178] L:0, P:2, C:nwno
+[179] L:0, P:3, C:nwno
+[180] L:0, P:2, C:nwno
+[181] L:0, P:3, C:nwno
+[182] L:0, P:2, C:nwno
+[183] L:0, P:3, C:nwno
+[184] L:0, P:2, C:nwno
+[185] L:0, P:3, C:nwno
+[186] L:0, P:2, C:nwno
+[187] L:0, P:3, C:nwno
+[188] L:0, P:2, C:nwno
+[189] L:0, P:3, C:nwno
+[190] L:0, P:2, C:nwno
+[191] L:0, P:3, C:nwno
+[192] L:0, P:2, C:nwno
+[193] L:0, P:3, C:nwno
+[194] L:0, P:2, C:nwno
+[195] L:0, P:3, C:nwno
+[196] L:0, P:2, C:nwno
+[197] L:0, P:3, C:nwno
+[198] L:0, P:2, C:nwno
+[199] L:0, P:3, C:nwno
+[200] L:0, P:2, C:nwno
+[201] L:0, P:3, C:nwno
+[202] L:0, P:2, C:nwno
+[203] L:0, P:3, C:nwno
+[204] L:0, P:2, C:nwno
+[205] L:0, P:3, C:nwno
+[206] L:0, P:2, C:nwno
+[207] L:0, P:3, C:nwno
+[208] L:0, P:2, C:nwno
+[209] L:0, P:3, C:nwno
+[210] L:0, P:2, C:nwno
+[211] L:0, P:3, C:nwno
+[212] L:0, P:2, C:nwno
+[213] L:0, P:3, C:nwno
+[214] L:0, P:2, C:nwno
+[215] L:0, P:3, C:nwno
+[216] L:0, P:2, C:nwno
+[217] L:0, P:3, C:nwno
+[218] L:0, P:2, C:nwno
+[219] L:0, P:3, C:nwno
+[220] L:0, P:2, C:nwno
+[221] L:0, P:3, C:nwno
+[222] L:0, P:2, C:nwno
+[223] L:0, P:3, C:nwno
+[224] L:0, P:2, C:nwno
+[225] L:0, P:3, C:nwno
+[226] L:0, P:2, C:nwno
+[227] L:0, P:3, C:nwno
+[228] L:0, P:2, C:nwno
+[229] L:0, P:3, C:nwno
+[230] L:0, P:2, C:nwno
+[231] L:0, P:3, C:nwno
+[232] L:0, P:2, C:nwno
+[233] L:0, P:3, C:nwno
+[234] L:0, P:2, C:nwno
+[235] L:0, P:3, C:nwno
+[236] L:0, P:2, C:nwno
+[237] L:0, P:3, C:nwno
+[238] L:0, P:2, C:nwno
+[239] L:0, P:3, C:nwno
+[240] L:0, P:2, C:nwno
+[241] L:0, P:3, C:nwno
+[242] L:0, P:2, C:nwno
+[243] L:0, P:3, C:nwno
+[244] L:0, P:2, C:nwno
+[245] L:0, P:3, C:nwno
+[246] L:0, P:2, C:nwno
+[247] L:0, P:3, C:nwno
+[248] L:0, P:2, C:nwno
+[249] L:0, P:3, C:nwno
+[250] L:0, P:2, C:nwno
+[251] L:0, P:3, C:nwno
+[252] L:0, P:2, C:nwno
+[253] L:0, P:3, C:nwno
+[254] L:0, P:2, C:nwno
+[255] L:0, P:3, C:nwno
+[256] L:0, P:2, C:nwno
+[257] L:0, P:3, C:nwno
+[258] L:0, P:2, C:nwno
+[259] L:0, P:3, C:nwno
+[260] L:0, P:2, C:nwno
+[261] L:0, P:3, C:nwno
+[262] L:0, P:2, C:nwno
+[263] L:0, P:3, C:nwno
+[264] L:0, P:2, C:nwno
+[265] L:0, P:3, C:nwno
+[266] L:0, P:2, C:nwno
+[267] L:0, P:3, C:nwno
+[268] L:0, P:2, C:nwno
+[269] L:0, P:3, C:nwno
+[270] L:0, P:2, C:nwno
+[271] L:0, P:3, C:nwno
+[272] L:0, P:2, C:nwno
+[273] L:0, P:3, C:nwno
+[274] L:0, P:2, C:nwno
+[275] L:0, P:3, C:nwno
+[276] L:0, P:2, C:nwno
+[277] L:0, P:3, C:nwno
+[278] L:0, P:2, C:nwno
+[279] L:0, P:3, C:nwno
+[280] L:0, P:2, C:nwno
+[281] L:0, P:3, C:nwno
+[282] L:0, P:2, C:nwno
+[283] L:0, P:3, C:nwno
+[284] L:0, P:2, C:nwno
+[285] L:0, P:3, C:nwno
+[286] L:0, P:2, C:nwno
+[287] L:0, P:3, C:nwno
+[288] L:0, P:2, C:nwno
+[289] L:0, P:3, C:nwno
+[290] L:0, P:2, C:nwno
+[291] L:0, P:3, C:nwno
+[292] L:0, P:2, C:nwno
+[293] L:0, P:3, C:nwno
+[294] L:0, P:2, C:nwno
+[295] L:0, P:3, C:nwno
+[296] L:0, P:2, C:nwno
+[297] L:0, P:3, C:nwno
+[298] L:0, P:2, C:nwno
+[299] L:0, P:3, C:nwno
+[300] L:0, P:2, C:nwno
+[301] L:0, P:3, C:nwno
+[302] L:0, P:2, C:nwno
+[303] L:0, P:3, C:nwno
+[304] L:0, P:2, C:nwno
+[305] L:0, P:3, C:nwno
+[306] L:0, P:2, C:nwno
+[307] L:0, P:3, C:nwno
+[308] L:0, P:2, C:nwno
+[309] L:0, P:3, C:nwno
+[310] L:0, P:2, C:nwno
+[311] L:0, P:3, C:nwno
+[312] L:0, P:2, C:nwno
+[313] L:0, P:3, C:nwno
+[314] L:0, P:2, C:nwno
+[315] L:0, P:3, C:nwno
+[316] L:0, P:2, C:nwno
+[317] L:0, P:3, C:nwno
+[318] L:0, P:2, C:nwno
+[319] L:0, P:3, C:nwno
+[320] L:0, P:2, C:nwno
+[321] L:0, P:3, C:nwno
+[322] L:0, P:2, C:nwno
+[323] L:0, P:3, C:nwno
+[324] L:0, P:2, C:nwno
+[325] L:0, P:3, C:nwno
+[326] L:0, P:2, C:nwno
+[327] L:0, P:3, C:nwno
+[328] L:0, P:2, C:nwno
+[329] L:0, P:3, C:nwno
+[330] L:0, P:2, C:nwno
+[331] L:0, P:3, C:nwno
+[332] L:0, P:2, C:nwno
+[333] L:0, P:3, C:nwno
+[334] L:0, P:2, C:nwno
+[335] L:0, P:3, C:nwno
+[336] L:0, P:2, C:nwno
+[337] L:0, P:3, C:nwno
+[338] L:0, P:2, C:nwno
+[339] L:0, P:3, C:nwno
+[340] L:0, P:2, C:nwno
+[341] L:0, P:3, C:nwno
+[342] L:0, P:2, C:nwno
+[343] L:0, P:3, C:nwno
+[344] L:0, P:2, C:nwno
+[345] L:0, P:3, C:nwno
+[346] L:0, P:2, C:nwno
+[347] L:0, P:3, C:nwno
+[348] L:0, P:2, C:nwno
+[349] L:0, P:3, C:nwno
+[350] L:0, P:2, C:nwno
+[351] L:0, P:3, C:nwno
+[352] L:0, P:2, C:nwno
+[353] L:0, P:3, C:nwno
+[354] L:0, P:2, C:nwno
+[355] L:0, P:3, C:nwno
+[356] L:0, P:2, C:nwno
+[357] L:0, P:3, C:nwno
+[358] L:0, P:2, C:nwno
+[359] L:0, P:3, C:nwno
+[360] L:0, P:2, C:nwno
+[361] L:0, P:3, C:nwno
+[362] L:0, P:2, C:nwno
+[363] L:0, P:3, C:nwno
+[364] L:0, P:2, C:nwno
+[365] L:0, P:3, C:nwno
+[366] L:0, P:2, C:nwno
+[367] L:0, P:3, C:nwno
+[368] L:0, P:2, C:nwno
+[369] L:0, P:3, C:nwno
+[370] L:0, P:2, C:nwno
+[371] L:0, P:3, C:nwno
+[372] L:0, P:2, C:nwno
+[373] L:0, P:3, C:nwno
+[374] L:0, P:2, C:nwno
+[375] L:0, P:3, C:nwno
+[376] L:0, P:2, C:nwno
+[377] L:0, P:3, C:nwno
+[378] L:0, P:2, C:nwno
+[379] L:0, P:3, C:nwno
+[380] L:0, P:2, C:nwno
+[381] L:0, P:3, C:nwno
+[382] L:0, P:2, C:nwno
+[383] L:0, P:3, C:nwno
+[384] L:0, P:2, C:nwno
+[385] L:0, P:3, C:nwno
+[386] L:0, P:2, C:nwno
+[387] L:0, P:3, C:nwno
+[388] L:0, P:2, C:nwno
+[389] L:0, P:3, C:nwno
+[390] L:0, P:2, C:nwno
+[391] L:0, P:3, C:nwno
+[392] L:0, P:2, C:nwno
+[393] L:0, P:3, C:nwno
+[394] L:0, P:2, C:nwno
+[395] L:0, P:3, C:nwno
+[396] L:0, P:2, C:nwno
+[397] L:0, P:3, C:nwno
+[398] L:0, P:2, C:nwno
+[399] L:0, P:3, C:nwno
+[400] L:0, P:2, C:nwno
+[401] L:0, P:3, C:nwno
+[402] L:0, P:2, C:nwno
+[403] L:0, P:3, C:nwno
+[404] L:0, P:2, C:nwno
+[405] L:0, P:3, C:nwno
+[406] L:0, P:2, C:nwno
+[407] L:0, P:3, C:nwno
+[408] L:0, P:2, C:nwno
+[409] L:0, P:3, C:nwno
+[410] L:0, P:2, C:nwno
+[411] L:0, P:3, C:nwno
+[412] L:0, P:2, C:nwno
+[413] L:0, P:3, C:nwno
+[414] L:0, P:2, C:nwno
+[415] L:0, P:3, C:nwno
+[416] L:0, P:2, C:nwno
+[417] L:0, P:3, C:nwno
+[418] L:0, P:2, C:nwno
+[419] L:0, P:3, C:nwno
+[420] L:0, P:2, C:nwno
+[421] L:0, P:3, C:nwno
+[422] L:0, P:2, C:nwno
+[423] L:0, P:3, C:nwno
+[424] L:0, P:2, C:nwno
+[425] L:0, P:3, C:nwno
+[426] L:0, P:2, C:nwno
+[427] L:0, P:3, C:nwno
+[428] L:0, P:2, C:nwno
+[429] L:0, P:3, C:nwno
+[430] L:0, P:2, C:nwno
+[431] L:0, P:3, C:nwno
+[432] L:0, P:2, C:nwno
+[433] L:0, P:3, C:nwno
+[434] L:0, P:2, C:nwno
+[435] L:0, P:3, C:nwno
+[436] L:0, P:2, C:nwno
+[437] L:0, P:3, C:nwno
+[438] L:0, P:2, C:nwno
+[439] L:0, P:3, C:nwno
+[440] L:0, P:2, C:nwno
+[441] L:0, P:3, C:nwno
+[442] L:0, P:2, C:nwno
+[443] L:0, P:3, C:nwno
+[444] L:0, P:2, C:nwno
+[445] L:0, P:3, C:nwno
+[446] L:0, P:2, C:nwno
+[447] L:0, P:3, C:nwno
+[448] L:0, P:2, C:nwno
+[449] L:0, P:3, C:nwno
+[450] L:0, P:2, C:nwno
+[451] L:0, P:3, C:nwno
+[452] L:0, P:2, C:nwno
+[453] L:0, P:3, C:nwno
+[454] L:0, P:2, C:nwno
+[455] L:0, P:3, C:nwno
+[456] L:0, P:2, C:nwno
+[457] L:0, P:3, C:nwno
+[458] L:0, P:2, C:nwno
+[459] L:0, P:3, C:nwno
+[460] L:0, P:2, C:nwno
+[461] L:0, P:3, C:nwno
+[462] L:0, P:2, C:nwno
+[463] L:0, P:3, C:nwno
+[464] L:0, P:2, C:nwno
+[465] L:0, P:3, C:nwno
+[466] L:0, P:2, C:nwno
+[467] L:0, P:3, C:nwno
+[468] L:0, P:2, C:nwno
+[469] L:0, P:3, C:nwno
+[470] L:0, P:2, C:nwno
+[471] L:0, P:3, C:nwno
+[472] L:0, P:2, C:nwno
+[473] L:0, P:3, C:nwno
+[474] L:0, P:2, C:nwno
+[475] L:0, P:3, C:nwno
+[476] L:0, P:2, C:nwno
+[477] L:0, P:3, C:nwno
+[478] L:0, P:2, C:nwno
+[479] L:0, P:3, C:nwno
+[480] L:0, P:2, C:nwno
+[481] L:0, P:3, C:nwno
+[482] L:0, P:2, C:nwno
+[483] L:0, P:3, C:nwno
+[484] L:0, P:2, C:nwno
+[485] L:0, P:3, C:nwno
+[486] L:0, P:2, C:nwno
+[487] L:0, P:3, C:nwno
+[488] L:0, P:2, C:nwno
+[489] L:0, P:3, C:nwno
+[490] L:0, P:2, C:nwno
+[491] L:0, P:3, C:nwno
+[492] L:0, P:2, C:nwno
+[493] L:0, P:3, C:nwno
+[494] L:0, P:2, C:nwno
+[495] L:0, P:3, C:nwno
+[496] L:0, P:2, C:nwno
+[497] L:0, P:3, C:nwno
+[498] L:0, P:2, C:nwno
+[499] L:0, P:3, C:nwno
+[500] L:0, P:2, C:nwno
+[501] L:0, P:3, C:nwno
+[502] L:0, P:2, C:nwno
+[503] L:0, P:3, C:nwno
+[504] L:0, P:2, C:nwno
+[505] L:0, P:3, C:nwno
+[506] L:0, P:2, C:nwno
+[507] L:0, P:3, C:nwno
+[508] L:0, P:2, C:nwno
+[509] L:0, P:3, C:nwno
+[510] L:0, P:2, C:nwno
+[511] L:0, P:3, C:nwno
+[512] L:0, P:2, C:nwno
+[513] L:0, P:3, C:nwno
+[514] L:0, P:2, C:nwno
+[515] L:0, P:3, C:nwno
+[516] L:0, P:2, C:nwno
+[517] L:0, P:3, C:nwno
+[518] L:0, P:2, C:nwno
+[519] L:0, P:3, C:nwno
+[520] L:0, P:2, C:nwno
+[521] L:0, P:3, C:nwno
+[522] L:0, P:2, C:nwno
+[523] L:0, P:3, C:nwno
+[524] L:0, P:2, C:nwno
+[525] L:0, P:3, C:nwno
+[526] L:0, P:2, C:nwno
+[527] L:0, P:3, C:nwno
+[528] L:0, P:2, C:nwno
+[529] L:0, P:3, C:nwno
+[530] L:0, P:2, C:nwno
+[531] L:0, P:3, C:nwno
+[532] L:0, P:2, C:nwno
+[533] L:0, P:3, C:nwno
+[534] L:0, P:2, C:nwno
+[535] L:0, P:3, C:nwno
+[536] L:0, P:2, C:nwno
+[537] L:0, P:3, C:nwno
+[538] L:0, P:2, C:nwno
+[539] L:0, P:3, C:nwno
+[540] L:0, P:2, C:nwno
+[541] L:0, P:3, C:nwno
+[542] L:0, P:2, C:nwno
+[543] L:0, P:3, C:nwno
+[544] L:0, P:2, C:nwno
+[545] L:0, P:3, C:nwno
+[546] L:0, P:2, C:nwno
+[547] L:0, P:3, C:nwno
+[548] L:0, P:2, C:nwno
+[549] L:0, P:3, C:nwno
+[550] L:0, P:2, C:nwno
+[551] L:0, P:3, C:nwno
+[552] L:0, P:2, C:nwno
+[553] L:0, P:3, C:nwno
+[554] L:0, P:2, C:nwno
+[555] L:0, P:3, C:nwno
+[556] L:0, P:2, C:nwno
+[557] L:0, P:3, C:nwno
+[558] L:0, P:2, C:nwno
+[559] L:0, P:3, C:nwno
+[560] L:0, P:2, C:nwno
+[561] L:0, P:3, C:nwno
+[562] L:0, P:2, C:nwno
+[563] L:0, P:3, C:nwno
+[564] L:0, P:2, C:nwno
+[565] L:0, P:3, C:nwno
+[566] L:0, P:2, C:nwno
+[567] L:0, P:3, C:nwno
+[568] L:0, P:2, C:nwno
+[569] L:0, P:3, C:nwno
+[570] L:0, P:2, C:nwno
+[571] L:0, P:3, C:nwno
+[572] L:0, P:2, C:nwno
+[573] L:0, P:3, C:nwno
+[574] L:0, P:2, C:nwno
+[575] L:0, P:3, C:nwno
+[576] L:0, P:2, C:nwno
+[577] L:0, P:3, C:nwno
+[578] L:0, P:2, C:nwno
+[579] L:0, P:3, C:nwno
+[580] L:0, P:2, C:nwno
+[581] L:0, P:3, C:nwno
+[582] L:0, P:2, C:nwno
+[583] L:0, P:3, C:nwno
+[584] L:0, P:2, C:nwno
+[585] L:0, P:3, C:nwno
+[586] L:0, P:2, C:nwno
+[587] L:0, P:3, C:nwno
+[588] L:0, P:2, C:nwno
+[589] L:0, P:3, C:nwno
+[590] L:0, P:2, C:nwno
+[591] L:0, P:3, C:nwno
+[592] L:0, P:2, C:nwno
+[593] L:0, P:3, C:nwno
+[594] L:0, P:2, C:nwno
+[595] L:0, P:3, C:nwno
+[596] L:0, P:2, C:nwno
+[597] L:0, P:3, C:nwno
+[598] L:0, P:2, C:nwno
+[599] L:0, P:3, C:nwno
+[600] L:0, P:2, C:nwno
+[601] L:0, P:3, C:nwno
+[602] L:0, P:2, C:nwno
+[603] L:0, P:3, C:nwno
+[604] L:0, P:2, C:nwno
+[605] L:0, P:3, C:nwno
+[606] L:0, P:2, C:nwno
+[607] L:0, P:3, C:nwno
+[608] L:0, P:2, C:nwno
+[609] L:0, P:3, C:nwno
+[610] L:0, P:2, C:nwno
+[611] L:0, P:3, C:nwno
+[612] L:0, P:2, C:nwno
+[613] L:0, P:3, C:nwno
+[614] L:0, P:2, C:nwno
+[615] L:0, P:3, C:nwno
+[616] L:0, P:2, C:nwno
+[617] L:0, P:3, C:nwno
+[618] L:0, P:2, C:nwno
+[619] L:0, P:3, C:nwno
+[620] L:0, P:2, C:nwno
+[621] L:0, P:3, C:nwno
+[622] L:0, P:2, C:nwno
+[623] L:0, P:3, C:nwno
+[624] L:0, P:2, C:nwno
+[625] L:0, P:3, C:nwno
+[626] L:0, P:2, C:nwno
+[627] L:0, P:3, C:nwno
+[628] L:0, P:2, C:nwno
+[629] L:0, P:3, C:nwno
+[630] L:0, P:2, C:nwno
+[631] L:0, P:3, C:nwno
+[632] L:0, P:2, C:nwno
+[633] L:0, P:3, C:nwno
+[634] L:0, P:2, C:nwno
+[635] L:0, P:3, C:nwno
+[636] L:0, P:2, C:nwno
+[637] L:0, P:3, C:nwno
+[638] L:0, P:2, C:nwno
+[639] L:0, P:3, C:nwno
+[640] L:0, P:2, C:nwno
+[641] L:0, P:3, C:nwno
+[642] L:0, P:2, C:nwno
+[643] L:0, P:3, C:nwno
+[644] L:0, P:2, C:nwno
+[645] L:0, P:3, C:nwno
+[646] L:0, P:2, C:nwno
+[647] L:0, P:3, C:nwno
+[648] L:0, P:2, C:nwno
+[649] L:0, P:3, C:nwno
+[650] L:0, P:2, C:nwno
+[651] L:0, P:3, C:nwno
+[652] L:0, P:2, C:nwno
+[653] L:0, P:3, C:nwno
+[654] L:0, P:2, C:nwno
+[655] L:0, P:3, C:nwno
+[656] L:0, P:2, C:nwno
+[657] L:0, P:3, C:nwno
+[658] L:0, P:2, C:nwno
+[659] L:0, P:3, C:nwno
+[660] L:0, P:2, C:nwno
+[661] L:0, P:3, C:nwno
+[662] L:0, P:2, C:nwno
+[663] L:0, P:3, C:nwno
+[664] L:0, P:2, C:nwno
+[665] L:0, P:3, C:nwno
+[666] L:0, P:2, C:nwno
+
+--- 테이블 0 진입 ---
+  테이블 앵커: L:0, P:4, pos:0
+  진입 후 위치: L:0, P:4, pos:0
+  MoveRight 후: L:2, P:0, pos:0
+
+=== 테이블 0 셀 스캔 ===
+  초기 위치: L:2, P:0, pos:0
+  첫 셀 위치: L:2, P:0, pos:0
+  셀(0,0): L:2, P:0
+  총 1개 셀 발견
+
+--- 테이블 1 진입 ---
+  테이블 앵커: L:0, P:8, pos:0
+  진입 후 위치: L:0, P:12, pos:8
+  MoveRight 후: L:0, P:9, pos:0
+  [실패] 테이블 1 진입 불가
+
+--- 테이블 2 진입 ---
+  테이블 앵커: L:0, P:12, pos:0
+  진입 후 위치: L:0, P:12, pos:8
+  MoveRight 후: L:0, P:13, pos:0
+  [실패] 테이블 2 진입 불가
+
+==================================================
+본문: 667개 문단
+테이블: 3개
+==================================================
+
+=== 본문 위치 정보 삽입 ===
+본문 삽입: L:0, P:0, C:본문
+본문 삽입: L:0, P:1, C:nwno
+본문 삽입: L:0, P:2, C:nwno
+본문 삽입: L:0, P:3, C:nwno
+본문 삽입: L:0, P:4, C:tbl
+본문 삽입: L:0, P:5, C:tbl
+본문 삽입: L:0, P:6, C:tbl
+본문 삽입: L:0, P:7, C:tbl
+본문 삽입: L:0, P:8, C:tbl
+본문 삽입: L:0, P:9, C:tbl
+본문 삽입: L:0, P:10, C:tbl
+본문 삽입: L:0, P:11, C:tbl
+본문 삽입: L:0, P:12, C:tbl
+본문 삽입: L:0, P:13, C:tbl
+본문 삽입: L:0, P:14, C:tbl
+총 15개 문단에 위치 정보 삽입 완료
+
+=== 테이블 0 위치 정보 삽입 ===
+  테이블 앵커: L:0, P:4, pos:76
+  진입 후 위치: L:0, P:4, pos:76
+  MoveRight 후: L:2, P:0, pos:0
+  테이블0 셀(0,0): L:2, P:0 삽입
+  1개 셀 처리 완료
+
+=== 테이블 1 위치 정보 삽입 ===
+  테이블 앵커: L:0, P:8, pos:78
+  진입 후 위치: L:0, P:12, pos:68
+  MoveRight 후: L:0, P:9, pos:0
+  [건너뜀] 테이블 1
+
+=== 테이블 2 위치 정보 삽입 ===
+  테이블 앵커: L:0, P:12, pos:60
+  진입 후 위치: L:0, P:12, pos:68
+  MoveRight 후: L:0, P:13, pos:0
+  [건너뜀] 테이블 2
+
+완료! 로그 파일: C:\win32hwp\logs\pos_info_20260118_135220.log
