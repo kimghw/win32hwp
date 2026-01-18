@@ -28,7 +28,7 @@ def open_hwp_file(file_path):
 
 def extract_field_info():
     """문서 내 필드 정보 추출"""
-    hwp = get_hwp_instance()
+    hwp = get_hwp()
     if not hwp:
         print("[오류] 한글이 실행 중이지 않습니다.")
         return
@@ -101,7 +101,7 @@ def extract_field_info():
 
 def extract_table_cell_info():
     """테이블 셀별 list_id, para_id, ctrl 정보 추출"""
-    hwp = get_hwp_instance()
+    hwp = get_hwp()
     if not hwp:
         print("[오류] 한글이 실행 중이지 않습니다.")
         return
@@ -216,7 +216,7 @@ def extract_table_cell_info():
 
 def extract_detailed_cell_info():
     """각 셀의 상세 정보 (para 포함) 추출"""
-    hwp = get_hwp_instance()
+    hwp = get_hwp()
     if not hwp:
         print("[오류] 한글이 실행 중이지 않습니다.")
         return
@@ -315,7 +315,7 @@ def extract_detailed_cell_info():
 
 def extract_table_properties():
     """테이블 속성 및 필드 정보 추출"""
-    hwp = get_hwp_instance()
+    hwp = get_hwp()
     if not hwp:
         print("[오류] 한글이 실행 중이지 않습니다.")
         return
@@ -622,7 +622,7 @@ def extract_table_properties():
 
 def insert_para_info_to_document():
     """각 셀의 문단 앞에 [list_id, para_id] 정보 삽입"""
-    hwp = get_hwp_instance()
+    hwp = get_hwp()
     if not hwp:
         print("[오류] 한글이 실행 중이지 않습니다.")
         return
@@ -875,6 +875,22 @@ class Logger:
         self.log.close()
 
 
+# 전역 hwp 인스턴스
+_hwp_instance = None
+
+def get_hwp():
+    """전역 hwp 인스턴스 반환 (없으면 ROT에서 가져옴)"""
+    global _hwp_instance
+    if _hwp_instance is None:
+        _hwp_instance = get_hwp_instance()
+    return _hwp_instance
+
+def set_hwp(hwp):
+    """전역 hwp 인스턴스 설정"""
+    global _hwp_instance
+    _hwp_instance = hwp
+
+
 if __name__ == "__main__":
     # 로그 파일로 출력 리다이렉트
     logger = Logger(LOG_FILE)
@@ -890,6 +906,7 @@ if __name__ == "__main__":
     if os.path.exists(TEST_FILE):
         print(f"\n테스트 파일 열기: {TEST_FILE}")
         hwp = open_hwp_file(TEST_FILE)
+        set_hwp(hwp)  # 전역 인스턴스로 설정
         print("파일 열기 성공!\n")
     else:
         print(f"[오류] 테스트 파일이 없습니다: {TEST_FILE}")
