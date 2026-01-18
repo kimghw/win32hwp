@@ -25,6 +25,80 @@ def open_hwp_file(file_path):
     print(f"파일 열기 완료: {file_path}")
     return hwp
 
+
+def extract_field_info():
+    """문서 내 필드 정보 추출"""
+    hwp = get_hwp_instance()
+    if not hwp:
+        print("[오류] 한글이 실행 중이지 않습니다.")
+        return
+
+    print(f"\n{'='*70}")
+    print("필드 정보 추출")
+    print(f"{'='*70}")
+
+    field_count = 0
+
+    # 필드 유형별 조회
+    field_types = [
+        (0, "일반 필드"),
+        (1, "셀 필드"),
+        (2, "누름틀 필드"),
+    ]
+
+    for opt, type_name in field_types:
+        print(f"\n[{type_name}]")
+        try:
+            field_list = hwp.GetFieldList(opt, 0)
+            if field_list:
+                fields = field_list.split('\x02')
+                for name in fields:
+                    if name:
+                        field_count += 1
+                        print(f"  필드명: {name}")
+                        try:
+                            val = hwp.GetFieldText(name)
+                            if val:
+                                print(f"    값: {val}")
+                        except:
+                            pass
+            else:
+                print("  (없음)")
+        except Exception as e:
+            print(f"  조회 오류: {e}")
+
+    # 컨트롤 순회로 추가 필드 찾기
+    print(f"\n[컨트롤 기반 필드 검색]")
+    ctrl = hwp.HeadCtrl
+    ctrl_fields = []
+    while ctrl:
+        ctrl_id = ctrl.CtrlID
+        # 필드 관련 컨트롤
+        if ctrl_id in ("%", "%%", "field", "clickhere"):
+            try:
+                anchor = ctrl.GetAnchorPos(0)
+                list_id = anchor.Item("List")
+                para_id = anchor.Item("Para")
+                user_desc = ctrl.UserDesc if hasattr(ctrl, 'UserDesc') else ctrl_id
+                ctrl_fields.append({
+                    'id': ctrl_id,
+                    'desc': user_desc,
+                    'list_id': list_id,
+                    'para_id': para_id
+                })
+            except:
+                pass
+        ctrl = ctrl.Next
+
+    if ctrl_fields:
+        for f in ctrl_fields:
+            print(f"  CtrlID={f['id']}, Desc={f['desc']}, 위치=({f['list_id']},{f['para_id']})")
+            field_count += 1
+    else:
+        print("  (없음)")
+
+    print(f"\n총 {field_count}개 필드 발견")
+
 def extract_table_cell_info():
     """테이블 셀별 list_id, para_id, ctrl 정보 추출"""
     hwp = get_hwp_instance()
@@ -832,6 +906,10 @@ if __name__ == "__main__":
 
     # 테이블 속성 및 필드 정보 추출 + 메모 삽입 (마지막에 실행)
     extract_table_properties()
+    print("\n\n")
+
+    # 필드 정보 추출
+    extract_field_info()
 
     print(f"\n\n로그 저장 완료: {LOG_FILE}")
     logger.close()
