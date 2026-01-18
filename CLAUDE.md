@@ -648,3 +648,116 @@ from separated_para import SeparatedPara
 from block_selector import BlockSelector
 from cursor_utils import get_hwp_instance
 ```
+
+---
+
+## 테이블 셀 내부 컨트롤 접근
+
+테이블 셀 안에 있는 이미지, 표, 수식 등의 컨트롤에 접근하는 방법.
+
+### 핵심: HeadCtrl + GetAnchorPos 필터링
+
+**`ParaCtrl`은 존재하지 않습니다!** 대신 `HeadCtrl`로 문서 전체 컨트롤을 순회하면서 `GetAnchorPos().Item("List")`로 필터링합니다.
+
+```python
+def get_ctrls_in_cell(hwp, target_list_id):
+    """특정 셀(list_id)에 속한 컨트롤 찾기"""
+    ctrls = []
+    ctrl = hwp.HeadCtrl
+    while ctrl:
+        try:
+            anchor = ctrl.GetAnchorPos(0)
+            ctrl_list_id = anchor.Item("List")
+            ctrl_para_id = anchor.Item("Para")
+
+            if ctrl_list_id == target_list_id:
+                ctrls.append({
+                    'ctrl': ctrl,
+                    'id': ctrl.CtrlID,
+                    'desc': ctrl.UserDesc,  # "그림", "표" 등
+                    'para': ctrl_para_id
+                })
+        except:
+            pass
+        ctrl = ctrl.Next
+    return ctrls
+
+# 사용 예시
+pos = hwp.GetPos()
+list_id = pos[0]  # 현재 셀의 list_id
+
+cell_ctrls = get_ctrls_in_cell(hwp, list_id)
+for c in cell_ctrls:
+    print(f"CtrlID={c['id']}, UserDesc={c['desc']}, Para={c['para']}")
+
+    # 속성 조회
+    props = c['ctrl'].Properties
+    if props and c['id'] == "gso":  # 그리기 개체 (그림)
+        width = props.Item("Width")
+        height = props.Item("Height")
+        treat_as_char = props.Item("TreatAsChar")
+        print(f"  크기: {width}x{height}, 글자취급: {treat_as_char}")
+```
+
+### 컨트롤 속성 (Properties)
+
+| 속성 | 설명 |
+|------|------|
+| `ctrl.CtrlID` | 컨트롤 종류 ("tbl", "gso", "eqed" 등) |
+| `ctrl.UserDesc` | 사용자 친화적 설명 ("그림", "표", "수식" 등) |
+| `ctrl.Properties` | 속성 객체 (Width, Height, TreatAsChar 등) |
+| `ctrl.GetAnchorPos(0)` | 컨트롤 앵커 위치 (List, Para 등) |
+| `ctrl.Next` / `ctrl.Prev` | 다음/이전 컨트롤 |
+
+### GetAnchorPos 반환값
+
+```python
+anchor = ctrl.GetAnchorPos(0)
+list_id = anchor.Item("List")   # 컨트롤이 속한 list_id (0=본문, 1+=셀)
+para_id = anchor.Item("Para")   # 컨트롤이 속한 문단 번호
+```
+
+### 주요 CtrlID
+
+| CtrlID | UserDesc | 설명 |
+|--------|----------|------|
+| `tbl` | 표 | 테이블 |
+| `gso` | 그림 | 그리기 개체 (이미지 포함) |
+| `eqed` | 수식 | 수식 편집기 |
+| `secd` | 구역 정의 | 섹션 (필터링 시 제외) |
+| `cold` | 단 정의 | 단 (필터링 시 제외) |
+
+### TreatAsChar (글자처럼 취급)
+
+이미지가 "글자처럼 취급"으로 설정된 경우에도 `HeadCtrl` + `GetAnchorPos` 방법으로 접근 가능합니다.
+
+```python
+props = ctrl.Properties
+treat_as_char = props.Item("TreatAsChar")  # 1=글자취급, 0=아님
+```
+
+**주의:** TreatAsChar=1인 개체는 `FindCtrl()`로는 찾기 어렵습니다. `HeadCtrl` 순회 방식을 사용하세요.
+
+---
+
+## WSL에서 Windows Python 실행
+
+WSL 환경에서는 `win32com`이 작동하지 않습니다. Windows 측 Python을 호출해야 합니다.
+
+```bash
+# WSL에서 Windows Python 실행
+cmd.exe /c "cd /d C:\\win32hwp && python script.py"
+
+# 또는
+cmd.exe /c "python C:\\win32hwp\\script.py"
+```
+
+**동작 원리:**
+1. WSL에서 Windows의 `cmd.exe` 실행
+2. `cmd.exe`가 Windows 경로로 이동
+3. Windows에 설치된 Python이 스크립트 실행
+4. Python이 `win32com`으로 한글 프로그램 제어
+
+**경로 주의:**
+- WSL 경로: `/mnt/c/win32hwp/` (파일 읽기/쓰기용)
+- Windows 경로: `C:\win32hwp\` (실행용)
