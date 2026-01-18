@@ -528,7 +528,7 @@ def extract_table_properties():
                                         margin_right = cell.Item("MarginRight") or 0
 
                                         # 셀 필드 정보 조회
-                                        cell_field = ""
+                                        cell_field = " 필드없음"
                                         try:
                                             field_list = hwp.GetFieldList(1, 0)  # 옵션 1 = 셀 필드
                                             if field_list:
