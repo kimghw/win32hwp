@@ -23,12 +23,16 @@ def set_hwp(hwp):
 
 
 # 마크다운 레벨별 변환 설정
+# left_margin: 왼쪽 여백 (pt)
+# hanging: 내어쓰기 (pt) - prefix 너비만큼
+# 10pt 글꼴 기준: 전각=10pt, 반각=5pt
+# □, ○, · = 전각(10pt), - = 반각(5pt), 공백 = 반각(5pt)
 HEADING_STYLES = {
-    1: {"prefix": "□ ", "indent": 0},      # # → □
-    2: {"prefix": "○ ", "indent": 3},      # ## → ○ (3칸 들여쓰기)
-    3: {"prefix": "- ", "indent": 5},       # ### → - (5칸 들여쓰기)
-    4: {"prefix": "· ", "indent": 7},       # #### → · (7칸 들여쓰기)
-    5: {"prefix": "▸ ", "indent": 9},       # ##### → ▸ (9칸 들여쓰기)
+    1: {"prefix": "□ ", "left_margin": 0, "hanging": 15},           # # → □  (공백0개 + □ + 공백 = 10+5=15pt)
+    2: {"prefix": "  ○ ", "left_margin": 0, "hanging": 25},         # ## → ○ (공백2개 + ○ + 공백 = 5+5+10+5=25pt)
+    3: {"prefix": "   - ", "left_margin": 0, "hanging": 25},        # ### → - (공백3개 + - + 공백 = 5+5+5+5+5=25pt)
+    4: {"prefix": "    · ", "left_margin": 0, "hanging": 35},       # #### → · (공백4개 + · + 공백 = 20+10+5=35pt)
+    5: {"prefix": "     ▸ ", "left_margin": 0, "hanging": 40},      # ##### → ▸ (공백5개 + ▸ + 공백 = 25+10+5=40pt)
 }
 
 
@@ -54,15 +58,34 @@ def parse_markdown_line(line):
 
 
 def convert_line(level, text):
-    """레벨에 따라 한글 문서 형식으로 변환"""
+    """레벨에 따라 한글 문서 형식으로 변환 (텍스트만)"""
     if level == 0:
         return text  # 일반 텍스트는 그대로
 
     style = HEADING_STYLES.get(level, HEADING_STYLES[5])
-    indent = " " * style["indent"]
     prefix = style["prefix"]
 
-    return f"{indent}{prefix}{text}"
+    return f"{prefix}{text}"
+
+
+def set_para_shape(hwp, level):
+    """문단 모양 설정 (왼쪽 여백 + 내어쓰기)"""
+    if level == 0:
+        return
+
+    style = HEADING_STYLES.get(level, HEADING_STYLES[5])
+    left_margin = style["left_margin"]
+    hanging = style["hanging"]
+
+    # pt → HWPUNIT 변환 (1pt = 200 HWPUNIT)
+    left_margin_hwp = int(left_margin * 200)
+    hanging_hwp = int(hanging * 200)
+
+    # 문단 모양 설정
+    hwp.HAction.GetDefault("ParagraphShape", hwp.HParameterSet.HParaShape.HSet)
+    hwp.HParameterSet.HParaShape.LeftMargin = left_margin_hwp
+    hwp.HParameterSet.HParaShape.Indentation = -hanging_hwp  # 음수 = 내어쓰기
+    hwp.HAction.Execute("ParagraphShape", hwp.HParameterSet.HParaShape.HSet)
 
 
 def markdown_to_hwp_text(markdown_text):
@@ -94,7 +117,7 @@ def insert_text_to_hwp(text):
 
 
 def markdown_to_hwp(markdown_text):
-    """마크다운 텍스트를 한글 문서에 삽입"""
+    """마크다운 텍스트를 한글 문서에 삽입 (내어쓰기 적용)"""
     hwp = get_hwp()
     if not hwp:
         print("[오류] 한글이 실행 중이지 않습니다.")
@@ -105,6 +128,9 @@ def markdown_to_hwp(markdown_text):
     for i, line in enumerate(lines):
         level, text = parse_markdown_line(line)
         converted = convert_line(level, text)
+
+        # 문단 모양 먼저 설정 (내어쓰기)
+        set_para_shape(hwp, level)
 
         # 텍스트 삽입
         hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet)
