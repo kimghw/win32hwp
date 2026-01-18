@@ -2,8 +2,11 @@
 # # → □ (배경)
 # ## → ○
 # ### → -
+# [picture] 경로 → 이미지 삽입
 
 import sys
+import os
+import re
 from cursor_utils import get_hwp_instance
 
 # 전역 hwp 인스턴스
@@ -88,6 +91,147 @@ def set_para_shape(hwp, level):
     hwp.HAction.Execute("ParagraphShape", hwp.HParameterSet.HParaShape.HSet)
 
 
+# 이미지 삽입 관련 상수
+# HwpSizeOption
+SIZE_REAL = 0           # 원본 크기
+SIZE_SPECIFIC = 1       # 지정 크기 (width, height 사용)
+SIZE_CELL = 2           # 셀 크기에 맞춤
+SIZE_CELL_RATIO = 3     # 셀 크기에 맞춤 (비율 유지)
+
+# HwpPictureEffect
+EFFECT_REAL = 0         # 실제 이미지
+EFFECT_GRAYSCALE = 1    # 그레이스케일
+EFFECT_BLACKWHITE = 2   # 흑백
+
+
+def is_picture_line(line):
+    """[picture] 태그가 있는 줄인지 확인"""
+    stripped = line.strip()
+    return stripped.lower().startswith("[picture]")
+
+
+def parse_picture_line(line):
+    """[picture] 줄에서 경로 추출
+
+    형식: [picture] 경로
+    예: [picture] C:/images/test.jpg
+        [picture] /mnt/c/win32hwp/test.jpg
+
+    Returns:
+        경로 문자열 또는 None
+    """
+    stripped = line.strip()
+    if not stripped.lower().startswith("[picture]"):
+        return None
+
+    # [picture] 뒤의 경로 추출
+    path = stripped[9:].strip()  # "[picture]" = 9글자
+
+    if not path:
+        return None
+
+    return path
+
+
+def insert_picture(hwp, path, width=None, height=None, embed=True, in_cell=False, caption=True):
+    """한글 문서에 이미지 삽입
+
+    Args:
+        hwp: HWP 객체
+        path: 이미지 파일 경로
+        width: 가로 크기 (mm), None이면 자동
+        height: 세로 크기 (mm), None이면 자동
+        embed: 문서에 포함 여부 (기본 True)
+        in_cell: 테이블 셀 안에 삽입 여부
+        caption: 캡션에 파일명 삽입 여부 (기본 True)
+
+    Returns:
+        성공 시 Ctrl 객체, 실패 시 None
+    """
+    # 경로 변환 (WSL 경로 → Windows 경로)
+    win_path = path
+    if path.startswith("/mnt/"):
+        # /mnt/c/... → C:/...
+        parts = path.split("/")
+        if len(parts) >= 3:
+            drive = parts[2].upper()
+            rest = "/".join(parts[3:])
+            win_path = f"{drive}:/{rest}"
+
+    # 파일 존재 확인 (원본 경로로)
+    check_path = path
+    if not os.path.exists(check_path) and os.path.exists(win_path.replace("/", "\\")):
+        check_path = win_path.replace("/", "\\")
+
+    # 크기 옵션 결정
+    if in_cell:
+        size_option = SIZE_CELL_RATIO  # 셀 크기에 맞춤 (비율 유지)
+    elif width is not None and height is not None:
+        size_option = SIZE_SPECIFIC
+    else:
+        size_option = SIZE_REAL
+
+    # 기본값 설정
+    if width is None:
+        width = 0
+    if height is None:
+        height = 0
+
+    try:
+        # 이미지 삽입 전 문단 가운데 정렬
+        hwp.HAction.GetDefault("ParagraphShape", hwp.HParameterSet.HParaShape.HSet)
+        hwp.HParameterSet.HParaShape.AlignType = 3  # 3 = 가운데 정렬
+        hwp.HAction.Execute("ParagraphShape", hwp.HParameterSet.HParaShape.HSet)
+
+        ctrl = hwp.InsertPicture(
+            win_path,       # path
+            embed,          # embedded
+            size_option,    # sizeoption
+            False,          # reverse
+            False,          # watermark
+            EFFECT_REAL,    # effect
+            width,          # width (mm)
+            height          # height (mm)
+        )
+
+        if ctrl:
+            # 캡션 추가 (파일명)
+            if caption:
+                try:
+                    # 파일명 추출
+                    filename = os.path.basename(win_path)
+
+                    # 이미지 선택 (방금 삽입한 개체)
+                    hwp.HAction.Run("SelectCtrlFront")
+
+                    # 캡션 넣기
+                    hwp.HAction.Run("ShapeObjAttachCaption")
+
+                    # 캡션에 파일명 입력
+                    hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet)
+                    hwp.HParameterSet.HInsertText.Text = filename
+                    hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet)
+
+                    # 선택 해제
+                    hwp.HAction.Run("Cancel")
+
+                    print(f"[이미지 삽입] {win_path} (가운데 정렬, 캡션: {filename})")
+                except Exception as cap_e:
+                    print(f"[경고] 캡션 삽입 실패: {cap_e}")
+                    print(f"[이미지 삽입] {win_path} (가운데 정렬)")
+            else:
+                print(f"[이미지 삽입] {win_path} (가운데 정렬)")
+            return ctrl
+        else:
+            print(f"[오류] 이미지 삽입 실패: {win_path}")
+            return None
+
+    except Exception as e:
+        print(f"[오류] 이미지 삽입 중 예외 발생: {e}")
+        print(f"       경로: {win_path}")
+        return None
+
+
 def markdown_to_hwp_text(markdown_text):
     """마크다운 텍스트를 한글 문서 형식으로 변환"""
     lines = markdown_text.strip().split('\n')
@@ -117,15 +261,29 @@ def insert_text_to_hwp(text):
 
 
 def markdown_to_hwp(markdown_text):
-    """마크다운 텍스트를 한글 문서에 삽입 (내어쓰기 적용)"""
+    """마크다운 텍스트를 한글 문서에 삽입 (내어쓰기 적용, 이미지 지원)"""
     hwp = get_hwp()
     if not hwp:
         print("[오류] 한글이 실행 중이지 않습니다.")
         return False
 
     lines = markdown_text.strip().split('\n')
+    picture_count = 0
 
     for i, line in enumerate(lines):
+        # [picture] 태그 처리
+        if is_picture_line(line):
+            pic_path = parse_picture_line(line)
+            if pic_path:
+                insert_picture(hwp, pic_path)
+                picture_count += 1
+            # 마지막 줄이 아니면 줄바꿈
+            if i < len(lines) - 1:
+                hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet)
+                hwp.HParameterSet.HInsertText.Text = "\r\n"
+                hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet)
+            continue
+
         level, text = parse_markdown_line(line)
         converted = convert_line(level, text)
 
@@ -143,7 +301,7 @@ def markdown_to_hwp(markdown_text):
             hwp.HParameterSet.HInsertText.Text = "\r\n"
             hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet)
 
-    print(f"총 {len(lines)}줄 삽입 완료")
+    print(f"총 {len(lines)}줄 삽입 완료 (이미지 {picture_count}개)")
     return True
 
 
@@ -184,8 +342,22 @@ def markdown_to_hwp_in_table(markdown_text, table_index=0, row=0, col=0):
 
     # 마크다운 텍스트 변환 및 삽입
     lines = markdown_text.strip().split('\n')
+    picture_count = 0
 
     for i, line in enumerate(lines):
+        # [picture] 태그 처리
+        if is_picture_line(line):
+            pic_path = parse_picture_line(line)
+            if pic_path:
+                insert_picture(hwp, pic_path, in_cell=True)
+                picture_count += 1
+            # 마지막 줄이 아니면 줄바꿈
+            if i < len(lines) - 1:
+                hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet)
+                hwp.HParameterSet.HInsertText.Text = "\r\n"
+                hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet)
+            continue
+
         level, text = parse_markdown_line(line)
         converted = convert_line(level, text)
 
@@ -204,7 +376,7 @@ def markdown_to_hwp_in_table(markdown_text, table_index=0, row=0, col=0):
     hwp.HAction.Run("MoveParentList")
     hwp.HAction.Run("Cancel")
 
-    print(f"테이블 #{table_index} 셀({row},{col})에 {len(lines)}줄 삽입 완료")
+    print(f"테이블 #{table_index} 셀({row},{col})에 {len(lines)}줄 삽입 완료 (이미지 {picture_count}개)")
     return True
 
 
