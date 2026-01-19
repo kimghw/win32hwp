@@ -1,5 +1,10 @@
 """
-빈 문단 글자 크기 변경 디버그
+SeparatedPara 디버그 모듈 - 통합 CLI 인터페이스
+
+기능:
+1. empty_para: 빈 문단 글자 크기 변경 디버그
+2. fix_all: 모든 걸친 문단 처리 테스트
+3. fix_page: 특정 페이지 fix_page 함수 디버그
 """
 import sys
 import os
@@ -9,17 +14,37 @@ from cursor import get_hwp_instance
 from separated_para import SeparatedPara
 
 
-def debug_empty_para():
+def get_hwp_and_helper():
+    """공통: hwp 인스턴스와 SeparatedPara 헬퍼 반환"""
     hwp = get_hwp_instance()
     if not hwp:
         print("[ERROR] 한글이 실행 중이지 않습니다.")
+        return None, None
+    helper = SeparatedPara(hwp)
+    return hwp, helper
+
+
+def print_spanning_paragraphs(para_page_map, title="걸친 문단"):
+    """공통: 걸친 문단 출력"""
+    spanning_count = 0
+    for para_id, info in sorted(para_page_map.items()):
+        if info['start_page'] != info['end_page']:
+            spanning_count += 1
+            print(f"  para_id={para_id}: 페이지 {info['start_page']}-{info['end_page']} [걸침]")
+    if spanning_count == 0:
+        print(f"  ({title} 없음)")
+    return spanning_count
+
+
+def debug_empty_para():
+    """빈 문단 글자 크기 변경 디버그"""
+    hwp, helper = get_hwp_and_helper()
+    if not hwp:
         return
 
     print("=" * 60)
     print("빈 문단 글자 크기 변경 디버그")
     print("=" * 60)
-
-    helper = SeparatedPara(hwp)
 
     # 1. para_page_map 조회
     helper.ParaAlignWords()
@@ -147,5 +172,127 @@ def debug_empty_para():
             print("    -> 여전히 걸침")
 
 
+def debug_fix_all():
+    """fix_all_paragraphs 함수 테스트 - 모든 걸친 문단 처리"""
+    hwp, helper = get_hwp_and_helper()
+    if not hwp:
+        return
+
+    print("=" * 60)
+    print("fix_all_paragraphs 테스트 - 전체 걸침 문단 처리")
+    print("=" * 60)
+
+    # 처리 전 상태
+    print("\n[처리 전 상태]")
+    helper.ParaAlignWords()
+    print_spanning_paragraphs(SeparatedPara.para_page_map)
+
+    # fix_all_paragraphs 실행
+    print("\n" + "-" * 50)
+    print("[실행] fix_all_paragraphs()")
+    print("-" * 50)
+
+    result = helper.fix_all_paragraphs(page=None, min_font_size=4, max_rounds=50)
+
+    print("-" * 50)
+    print(f"\n[결과]")
+    print(f"  반복 횟수: {result['rounds']}")
+    print(f"  처리 문단: {result['processed']}")
+    print(f"  성공: {result['success']}")
+    print(f"  실패: {result['failed']}")
+    print(f"  남은 걸침: {result['remaining_spanning']}")
+
+    # 처리 후 상태
+    print("\n[처리 후 상태]")
+    helper.ParaAlignWords()
+    print_spanning_paragraphs(SeparatedPara.para_page_map)
+
+
+def debug_fix_page(page=1):
+    """fix_page 함수 디버그"""
+    hwp, helper = get_hwp_and_helper()
+    if not hwp:
+        return
+
+    print("=" * 60)
+    print("fix_page 함수 디버그")
+    print("=" * 60)
+
+    print(f"\n[실행] 페이지 {page} fix_page 호출")
+    print("-" * 50)
+
+    def log_callback(msg):
+        print(msg)
+
+    result = helper.fix_page(page, max_iterations=50, strategy='empty_font',
+                             log_callback=log_callback)
+
+    print("-" * 50)
+    print(f"\n[결과]")
+    print(f"  성공: {result.get('success')}")
+    print(f"  반복: {result.get('iterations')}")
+    print(f"  전략: {result.get('strategy_used')}")
+    print(f"  메시지: {result.get('message', '')}")
+
+    if 'original_lines_info' in result:
+        print(f"  원본 줄분포: {result['original_lines_info'].get('lines_per_page')}")
+    if 'final_lines_info' in result:
+        print(f"  최종 줄분포: {result['final_lines_info'].get('lines_per_page')}")
+
+    # 최종 상태 확인
+    print("\n[최종 상태]")
+    helper.ParaAlignWords()
+    print_spanning_paragraphs(SeparatedPara.para_page_map)
+
+
+def show_menu():
+    """메뉴 출력"""
+    print("\n" + "=" * 60)
+    print("SeparatedPara 디버그 메뉴")
+    print("=" * 60)
+    print("1. empty_para  - 빈 문단 글자 크기 변경 디버그")
+    print("2. fix_all     - 모든 걸친 문단 처리 테스트")
+    print("3. fix_page    - 특정 페이지 fix_page 함수 디버그")
+    print("q. 종료")
+    print("-" * 60)
+
+
+def main():
+    """CLI 메인 함수"""
+    # 커맨드라인 인자 처리
+    if len(sys.argv) > 1:
+        cmd = sys.argv[1].lower()
+        if cmd in ('1', 'empty_para', 'empty'):
+            debug_empty_para()
+        elif cmd in ('2', 'fix_all', 'all'):
+            debug_fix_all()
+        elif cmd in ('3', 'fix_page', 'page'):
+            page = int(sys.argv[2]) if len(sys.argv) > 2 else 1
+            debug_fix_page(page)
+        else:
+            print(f"알 수 없는 명령: {cmd}")
+            print("사용법: python debug_separated.py [empty_para|fix_all|fix_page [page]]")
+        return
+
+    # 대화형 모드
+    while True:
+        show_menu()
+        choice = input("선택 (1-3, q): ").strip().lower()
+
+        if choice in ('q', 'quit', 'exit'):
+            print("종료합니다.")
+            break
+        elif choice in ('1', 'empty_para', 'empty'):
+            debug_empty_para()
+        elif choice in ('2', 'fix_all', 'all'):
+            debug_fix_all()
+        elif choice in ('3', 'fix_page', 'page'):
+            page_input = input("페이지 번호 (기본값=1): ").strip()
+            page = int(page_input) if page_input else 1
+            debug_fix_page(page)
+        else:
+            print(f"알 수 없는 선택: {choice}")
+
+
 if __name__ == "__main__":
-    debug_empty_para()
+    main()

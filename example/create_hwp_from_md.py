@@ -12,7 +12,7 @@ from md_to_hwp import markdown_to_hwp, set_hwp
 
 # 파일 경로
 MD_FILE = os.path.join(os.path.dirname(__file__), "md_content.md")
-OUTPUT_FILE = r"C:\win32hwp\table\output.hwp"
+OUTPUT_FILE = r"C:\win32hwp\example\output.hwp"
 
 
 def main():

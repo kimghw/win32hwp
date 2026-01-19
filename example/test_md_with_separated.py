@@ -520,7 +520,7 @@ if __name__ == "__main__":
 
     # 파일 경로 설정
     MD_FILE = os.path.join(os.path.dirname(__file__), "md_content.md")
-    OUTPUT_FILE = r"C:\win32hwp\table\output_with_fix.hwp"
+    OUTPUT_FILE = r"C:\win32hwp\example\output_with_fix.hwp"
 
     # 마크다운 파일로 한글 문서 생성
     hwp = create_hwp_from_md(MD_FILE, OUTPUT_FILE, fix_separated=True, debug=False)
