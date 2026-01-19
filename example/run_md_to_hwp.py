@@ -1,5 +1,10 @@
 # 마크다운 → 한글 문서 변환 + 분리단어/문단 처리 (섹션별)
 import os
+import sys
+
+# 부모 디렉토리를 path에 추가 (루트 모듈 import용)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import win32com.client as win32
 from md_to_hwp import (
     set_hwp,
@@ -15,8 +20,8 @@ from md_to_hwp import (
 from separated_word import SeparatedWord
 from separated_para import SeparatedPara
 
-# 마크다운 파일 경로
-MD_FILE = os.path.join(os.path.dirname(__file__), "table", "md_content.md")
+# 마크다운 파일 경로 (루트의 sources 디렉토리)
+MD_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "sources", "md_content.md")
 
 
 def fix_section_paragraphs(hwp, start_para, end_para, debug=False):
