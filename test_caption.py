@@ -1,5 +1,5 @@
 # 캡션 기능 테스트
-from table_cell_generate import insert_picture, get_hwp
+from table.table_md_2_hwp import insert_picture, get_hwp
 
 hwp = get_hwp()
 if hwp:

@@ -1,10 +1,10 @@
 # 마크다운 → 한글 문서 변환 테스트
 import os
 import win32com.client as win32
-from table_cell_generate import markdown_to_hwp, set_hwp
+from table.table_md_2_hwp import markdown_to_hwp, set_hwp
 
 # 마크다운 파일 경로
-MD_FILE = os.path.join(os.path.dirname(__file__), "test_content.md")
+MD_FILE = os.path.join(os.path.dirname(__file__), "table", "md_content.md")
 
 if __name__ == "__main__":
     print("=== 마크다운 → 한글 문서 삽입 테스트 ===\n")

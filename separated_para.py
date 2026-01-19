@@ -330,8 +330,8 @@ class SeparatedPara:
             self.hwp.SetPos(list_id, empty_para_id, 0)
             self.hwp.HAction.Run("MoveParaBegin")
 
-            # 빈 문단 전체 선택 (문단 시작에서 끝까지)
-            self.hwp.HAction.Run("MoveSelParaEnd")
+            # 빈 문단 전체 선택 (줄바꿈 문자까지 포함하려면 다음 문단 시작까지 선택)
+            self.hwp.HAction.Run("MoveSelNextParaBegin")
 
             # 현재 글자 크기 가져오기
             pset = self.hwp.HParameterSet.HCharShape
@@ -349,10 +349,10 @@ class SeparatedPara:
                 current_height -= 100  # 1pt 줄이기
                 reduced_this_para += 1
 
-                # 빈 문단 전체 선택 후 글자 크기 적용
+                # 빈 문단 전체 선택 후 글자 크기 적용 (줄바꿈 문자까지 포함)
                 self.hwp.SetPos(list_id, empty_para_id, 0)
                 self.hwp.HAction.Run("MoveParaBegin")
-                self.hwp.HAction.Run("MoveSelParaEnd")
+                self.hwp.HAction.Run("MoveSelNextParaBegin")
                 pset.Height = current_height
                 self.hwp.HAction.Execute("CharShape", pset.HSet)
                 self.hwp.HAction.Run("Cancel")
@@ -675,7 +675,10 @@ class SeparatedPara:
         for empty_para_id in empty_paras:
             self.hwp.SetPos(list_id, empty_para_id, 0)
             self.hwp.HAction.Run("MoveParaBegin")
-            self.hwp.HAction.Run("MoveSelParaEnd")
+
+            # 빈 문단은 줄바꿈 문자만 있으므로 다음 문단 시작까지 선택해야 함
+            # MoveSelNextParaBegin 또는 MoveRight로 줄바꿈 문자까지 포함
+            self.hwp.HAction.Run("MoveSelNextParaBegin")
 
             pset = self.hwp.HParameterSet.HCharShape
             self.hwp.HAction.GetDefault("CharShape", pset.HSet)

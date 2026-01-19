@@ -5,6 +5,10 @@
 # - colspan 셀은 여러 좌표가 같은 list_id를 가짐
 # - 예: {(0,0): 2, (0,1): 3, (0,2): 4, (0,3): 4, ...} 
 
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from dataclasses import dataclass
 from typing import Dict, List
 from cursor_utils import get_hwp_instance
