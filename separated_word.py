@@ -302,7 +302,7 @@ class SeparatedWord:
         """
         줄이 정렬 대상인지 판단
 
-        조건: "1~2글자 + 공백"으로 시작하는 경우
+        조건: "1~3글자 + 공백"으로 시작하는 경우
 
         Args:
             text: 줄 텍스트
@@ -319,10 +319,41 @@ class SeparatedWord:
         if first_space_idx == -1:
             return False
 
-        # 공백이 위치 1 또는 2에 있으면 정렬 대상
-        # 위치 1: "적 과정..." (1글자 + 공백)
-        # 위치 2: "며, 제원..." (2글자 + 공백)
-        return first_space_idx in [1, 2]
+        # 공백이 위치 1, 2, 3에 있으면 정렬 대상
+        # 위치 1: "적 과정..." (1글자 + 공백) → 자간 줄여서 올림
+        # 위치 2: "며, 제원..." (2글자 + 공백) → 자간 줄여서 올림
+        # 위치 3: "수적으 ..." (3글자 + 공백) → 이전 줄 자간 늘려서 1글자 내림
+        return first_space_idx in [1, 2, 3]
+
+    def _get_alignment_type(self, current_text: str, prev_text: str) -> str:
+        """
+        정렬 방식 결정
+
+        Args:
+            current_text: 현재 줄 텍스트
+            prev_text: 이전 줄 텍스트
+
+        Returns:
+            'reduce': 이전 줄 자간 줄여서 글자 올림
+            'expand': 이전 줄 자간 늘려서 글자 내림
+            'skip': 처리 불필요
+        """
+        if not current_text:
+            return 'skip'
+
+        first_space_idx = current_text.find(' ')
+
+        if first_space_idx in [1, 2]:
+            # 1~2글자: 자간 줄여서 올림
+            return 'reduce'
+        elif first_space_idx == 3:
+            # 3글자 + 이전 줄 끝 1글자(공백 아님): 자간 늘려서 내림
+            if prev_text and len(prev_text) > 0 and prev_text[-1] != ' ':
+                # 이전 줄 끝이 공백이 아니면 자간 늘리기
+                return 'expand'
+            return 'skip'
+        else:
+            return 'skip'
 
     def _line_ends_with_space(self, text: str) -> bool:
         """줄이 공백으로 끝나는지 확인"""
@@ -654,7 +685,10 @@ class SeparatedWord:
                 else:
                     self._log(f"공백 없음 (처리 불가)")
 
-                # 처리 필요 여부 확인
+                # 이전 줄 텍스트 (정렬 방식 판단에 필요)
+                prev_text = self._get_line_text(para_id, line_idx - 1, line_info)
+
+                # 처리 필요 여부 및 방식 확인
                 needs_align = self._needs_alignment(current_text)
                 if not needs_align:
                     self._log(f"건너뜀: 처리 패턴 불일치")
@@ -662,16 +696,22 @@ class SeparatedWord:
                     line_idx += 1
                     continue
 
-                self._log(f"처리 대상으로 판단됨")
+                # 정렬 방식 결정 (reduce: 자간 줄임, expand: 자간 늘림)
+                align_type = self._get_alignment_type(current_text, prev_text)
+                self._log(f"처리 대상으로 판단됨 (방식: {align_type})")
 
-                # 이전 줄 텍스트
-                prev_text = self._get_line_text(para_id, line_idx - 1, line_info)
+                if align_type == 'skip':
+                    self._log(f"건너뜀: 처리 조건 미충족")
+                    skipped_count += 1
+                    line_idx += 1
+                    continue
+
                 self._log(f"이전 줄 텍스트: '{prev_text}'")
                 self._log(f"이전 줄 끝 문자: '{prev_text[-1] if prev_text else ''}'")
                 self._log(f"이전 줄 끝이 공백? {self._line_ends_with_space(prev_text)}")
 
-                # 이미 이전 줄이 공백으로 끝나면 성공
-                if self._line_ends_with_space(prev_text):
+                # 이미 이전 줄이 공백으로 끝나면 성공 (reduce 케이스)
+                if align_type == 'reduce' and self._line_ends_with_space(prev_text):
                     self._log(f"이미 처리됨: 이전 줄 끝이 공백")
                     line_idx += 1
                     continue
@@ -679,91 +719,129 @@ class SeparatedWord:
                 self._log(f"처리 시작")
                 self._log(f"   이전 줄 끝 10자: '{prev_text[-10:] if len(prev_text) >= 10 else prev_text}'")
 
+                # 현재 줄의 처음 단어 길이 확인 (몇 글자를 올려야 하는지)
+                first_space_idx = current_text.find(' ')
+                target_chars = first_space_idx  # 공백 전 글자 수
+                self._log(f"공백 전 글자 수: {target_chars}글자")
+
                 # 자간 조정 시작
-                current_spacing = 0
                 line_adjusted = False
                 same_line_attempts = 0
                 max_same_line_attempts = 10
 
-                self._log(f"-" * 60)
-                self._log(f"자간 조정 루프 시작:")
-                self._log(f"   초기 자간: {current_spacing}")
-                self._log(f"   자간 감소 단위: {spacing_step}")
-                self._log(f"   최소 자간: {min_spacing}")
-                self._log(f"   최대 시도: {max_same_line_attempts}")
-                self._log(f"-" * 60)
+                if align_type == 'reduce':
+                    # 자간 줄이기: 1글자는 -2, 2글자는 -3으로 시작
+                    if target_chars == 1:
+                        current_spacing = -2
+                    else:  # target_chars == 2
+                        current_spacing = -3
 
-                # 현재 줄의 처음 단어 길이 확인 (몇 글자를 올려야 하는지)
-                first_space_idx = current_text.find(' ')
-                target_chars = first_space_idx + 1  # 공백 포함
-                self._log(f"올려야 할 글자 수: {target_chars}글자 (공백 포함)")
+                    self._log(f"-" * 60)
+                    self._log(f"자간 줄이기 (reduce) 시작:")
+                    self._log(f"   초기 자간: {current_spacing} ({target_chars}글자 기준)")
+                    self._log(f"   자간 감소 단위: {spacing_step}")
+                    self._log(f"   최소 자간: {min_spacing}")
+                    self._log(f"-" * 60)
 
-                while current_spacing > min_spacing and same_line_attempts < max_same_line_attempts:
-                    same_line_attempts += 1
-                    current_spacing += spacing_step
-
-                    self._log(f"")
-                    self._log(f"시도 #{same_line_attempts}")
-                    self._log(f"   현재 자간: {current_spacing}")
-                    self._log(f"   남은 여유: {current_spacing - min_spacing} (최소값까지)")
-
-                    # 이전 줄 자간 조정
+                    # 첫 시도
                     if not self._adjust_spacing(para_id, line_idx - 1, current_spacing):
                         self._log("자간 조정 실패", "ERROR")
-                        break
+                    else:
+                        same_line_attempts += 1
+                        line_info = self._get_line_info(para_id)
+                        prev_text = self._get_line_text(para_id, line_idx - 1, line_info)
 
-                    # 줄 정보 재수집
-                    line_info = self._get_line_info(para_id)
+                        if self._line_ends_with_space(prev_text):
+                            self._log(f"성공: 이전 줄 끝이 공백 (시도 1회, 자간 {current_spacing})")
+                            line_adjusted = True
+                            adjusted_count += 1
 
-                    # 줄 수 변경 확인
-                    new_total_lines = line_info['line_count']
-                    if new_total_lines != current_total_lines:
-                        self._log(f"줄 수 변경: {current_total_lines} -> {new_total_lines}")
-                        current_total_lines = new_total_lines
+                    # 추가 시도 (필요시)
+                    while not line_adjusted and current_spacing > min_spacing and same_line_attempts < max_same_line_attempts:
+                        same_line_attempts += 1
+                        current_spacing += spacing_step
 
-                        # 현재 줄이 사라진 경우 (성공)
+                        self._log(f"시도 #{same_line_attempts}, 자간: {current_spacing}")
+
+                        if not self._adjust_spacing(para_id, line_idx - 1, current_spacing):
+                            self._log("자간 조정 실패", "ERROR")
+                            break
+
+                        line_info = self._get_line_info(para_id)
+
+                        # 줄 수 변경 확인
+                        new_total_lines = line_info['line_count']
                         if line_idx >= new_total_lines:
                             self._log("성공: 줄 병합됨")
                             line_adjusted = True
                             break
 
-                    # 이전 줄 다시 확인
-                    if line_idx - 1 >= len(line_info['line_starts']):
-                        self._log("이전 줄 인덱스 오류", "ERROR")
-                        break
+                        if line_idx - 1 >= len(line_info['line_starts']):
+                            break
 
-                    prev_text = self._get_line_text(para_id, line_idx - 1, line_info)
-                    self._log(f"자간 조정 후 이전 줄: '{prev_text[-20:]}'")
-                    self._log(f"이전 줄 끝 문자 (repr): {repr(prev_text[-1]) if prev_text else 'None'}")
+                        prev_text = self._get_line_text(para_id, line_idx - 1, line_info)
 
-                    # 이전 줄이 공백으로 끝나면 성공
-                    if self._line_ends_with_space(prev_text):
-                        self._log(f"성공: 이전 줄 끝이 공백")
-                        line_adjusted = True
-                        adjusted_count += 1
-                        break
-                    else:
-                        self._log(f"아직 공백 아님, 계속 시도...")
+                        if self._line_ends_with_space(prev_text):
+                            self._log(f"성공: 이전 줄 끝이 공백")
+                            line_adjusted = True
+                            adjusted_count += 1
+                            break
+
+                else:  # align_type == 'expand'
+                    # 자간 늘리기: 이전 줄 끝 1글자를 다음 줄로 내림
+                    current_spacing = 1  # 양수로 시작
+                    max_spacing = 10  # 최대 자간
+
+                    self._log(f"-" * 60)
+                    self._log(f"자간 늘리기 (expand) 시작:")
+                    self._log(f"   목표: 이전 줄 끝 1글자를 다음 줄로 내림")
+                    self._log(f"   초기 자간: +{current_spacing}")
+                    self._log(f"   최대 자간: +{max_spacing}")
+                    self._log(f"-" * 60)
+
+                    # 이전 줄 끝 글자 저장 (성공 여부 판단용)
+                    original_prev_last_char = prev_text[-1] if prev_text else ''
+
+                    while current_spacing <= max_spacing and same_line_attempts < max_same_line_attempts:
+                        same_line_attempts += 1
+
+                        self._log(f"시도 #{same_line_attempts}, 자간: +{current_spacing}")
+
+                        if not self._adjust_spacing(para_id, line_idx - 1, current_spacing):
+                            self._log("자간 조정 실패", "ERROR")
+                            break
+
+                        line_info = self._get_line_info(para_id)
+
+                        # 줄 수 변경 확인 (줄이 늘어날 수 있음)
+                        new_total_lines = line_info['line_count']
+                        if new_total_lines != current_total_lines:
+                            self._log(f"줄 수 변경: {current_total_lines} -> {new_total_lines}")
+
+                        if line_idx - 1 >= len(line_info['line_starts']):
+                            break
+
+                        # 이전 줄 다시 확인
+                        prev_text = self._get_line_text(para_id, line_idx - 1, line_info)
+                        new_prev_last_char = prev_text[-1] if prev_text else ''
+
+                        self._log(f"   이전 줄 끝: '{original_prev_last_char}' -> '{new_prev_last_char}'")
+
+                        # 이전 줄이 공백으로 끝나면 성공 (1글자가 내려감)
+                        if self._line_ends_with_space(prev_text):
+                            self._log(f"성공: 이전 줄 끝이 공백 (1글자 내림)")
+                            line_adjusted = True
+                            adjusted_count += 1
+                            break
+
+                        current_spacing += 1
 
                 if line_adjusted:
-                    # 성공했으므로 현재 줄을 다시 검사 (줄 번호 유지)
-                    # 왜냐하면 자간 조정으로 줄 구조가 변경되었을 수 있음
-                    self._log(f"")
-                    self._log(f"줄 {line_idx + 1} 처리 성공!")
-                    self._log(f"   최종 자간: {current_spacing}")
-                    self._log(f"   시도 횟수: {same_line_attempts}")
+                    self._log(f"줄 {line_idx + 1} 처리 성공! (방식: {align_type}, 자간: {current_spacing}, 시도: {same_line_attempts})")
                     total_lines = line_info['line_count']
                     continue
                 else:
-                    self._log(f"")
-                    self._log(f"줄 {line_idx + 1} 처리 실패", "WARNING")
-                    self._log(f"   최종 자간: {current_spacing}")
-                    self._log(f"   시도 횟수: {same_line_attempts}/{max_same_line_attempts}")
-                    self._log(f"   실패 이유: ", "WARNING")
-                    if current_spacing <= min_spacing:
-                        self._log(f"      - 최소 자간({min_spacing}) 도달", "WARNING")
-                    if same_line_attempts >= max_same_line_attempts:
-                        self._log(f"      - 최대 시도 횟수({max_same_line_attempts}) 초과", "WARNING")
+                    self._log(f"줄 {line_idx + 1} 처리 실패 (방식: {align_type})", "WARNING")
                     failed_count += 1
                     line_idx += 1
 
