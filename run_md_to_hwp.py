@@ -137,6 +137,12 @@ def process_markdown_by_section(hwp, markdown_text, debug=False):
         print(f"[섹션 {idx}/{total_sections-1}] {section['title']}")
         print(f"{'='*50}")
 
+        # 첫 번째 섹션이 아니면 상단에 빈줄 추가
+        if idx > 0:
+            hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet)
+            hwp.HParameterSet.HInsertText.Text = "\r\n"
+            hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet)
+
         # 1. 섹션 렌더링
         print(f"  [렌더링]...")
         render_result = render_section_content(hwp, section['content'])
@@ -163,12 +169,6 @@ def process_markdown_by_section(hwp, markdown_text, debug=False):
             'pictures': render_result['pictures'],
             'adjusted': fix_result['adjusted']
         })
-
-        # 섹션 간 줄바꿈 (마지막 아니면)
-        if idx < total_sections - 1:
-            hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet)
-            hwp.HParameterSet.HInsertText.Text = "\r\n"
-            hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet)
 
     return {
         'total_sections': total_sections,
