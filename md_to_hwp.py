@@ -61,6 +61,63 @@ def parse_markdown_line(line):
     return level, text
 
 
+def split_by_section(markdown_text):
+    """
+    마크다운 텍스트를 # (레벨 1) 단위로 섹션 분리
+
+    Args:
+        markdown_text: 전체 마크다운 텍스트
+
+    Returns:
+        [
+            {'title': '배경', 'content': '# 배경\n## 내용1\n...'},
+            {'title': '목적', 'content': '# 목적\n## 내용1\n...'},
+            ...
+        ]
+    """
+    lines = markdown_text.strip().split('\n')
+    sections = []
+    current_section = []
+    current_title = None
+
+    for line in lines:
+        level, text = parse_markdown_line(line)
+
+        if level == 1:
+            # 새 섹션 시작
+            if current_section:
+                # 이전 섹션 저장
+                sections.append({
+                    'title': current_title,
+                    'content': '\n'.join(current_section)
+                })
+            current_section = [line]
+            current_title = text
+        else:
+            # 현재 섹션에 추가
+            current_section.append(line)
+
+    # 마지막 섹션 저장
+    if current_section:
+        sections.append({
+            'title': current_title,
+            'content': '\n'.join(current_section)
+        })
+
+    return sections
+
+
+def get_sections(markdown_text):
+    """
+    마크다운 텍스트의 섹션 목록 반환 (미리보기용)
+
+    Returns:
+        [(index, title), ...]
+    """
+    sections = split_by_section(markdown_text)
+    return [(i, s['title']) for i, s in enumerate(sections)]
+
+
 def convert_line(level, text):
     """레벨에 따라 한글 문서 형식으로 변환 (텍스트만)"""
     if level == 0:
@@ -304,6 +361,139 @@ def markdown_to_hwp(markdown_text):
 
     print(f"총 {len(lines)}줄 삽입 완료 (이미지 {picture_count}개)")
     return True
+
+
+def markdown_to_hwp_by_section(markdown_text, section_index=None, callback=None):
+    """
+    마크다운 텍스트를 # 단위(섹션)로 나눠서 렌더링
+
+    Args:
+        markdown_text: 전체 마크다운 텍스트
+        section_index: 특정 섹션만 렌더링 (None이면 전체, 0부터 시작)
+        callback: 각 섹션 렌더링 후 호출할 콜백 함수
+                  callback(section_idx, section_title, result)
+
+    Returns:
+        {
+            'success': bool,
+            'total_sections': int,
+            'rendered_sections': int,
+            'sections': [{'index': 0, 'title': '...', 'lines': 10}, ...]
+        }
+    """
+    hwp = get_hwp()
+    if not hwp:
+        print("[오류] 한글이 실행 중이지 않습니다.")
+        return {'success': False, 'error': '한글이 실행 중이지 않습니다.'}
+
+    # 섹션 분리
+    sections = split_by_section(markdown_text)
+    total_sections = len(sections)
+
+    if total_sections == 0:
+        print("[오류] 섹션이 없습니다.")
+        return {'success': False, 'error': '섹션이 없습니다.'}
+
+    print(f"[섹션 분리] 총 {total_sections}개 섹션")
+    for i, s in enumerate(sections):
+        line_count = len(s['content'].split('\n'))
+        print(f"  [{i}] {s['title']} ({line_count}줄)")
+
+    # 렌더링할 섹션 결정
+    if section_index is not None:
+        if section_index < 0 or section_index >= total_sections:
+            print(f"[오류] 섹션 인덱스 {section_index}가 범위를 벗어났습니다. (0~{total_sections-1})")
+            return {'success': False, 'error': f'섹션 인덱스 범위 오류'}
+        sections_to_render = [(section_index, sections[section_index])]
+    else:
+        sections_to_render = list(enumerate(sections))
+
+    rendered_sections = []
+    total_lines = 0
+    total_pictures = 0
+
+    for idx, section in sections_to_render:
+        print(f"\n[섹션 {idx}] '{section['title']}' 렌더링 중...")
+
+        lines = section['content'].strip().split('\n')
+        picture_count = 0
+
+        for i, line in enumerate(lines):
+            # [picture] 태그 처리
+            if is_picture_line(line):
+                pic_path = parse_picture_line(line)
+                if pic_path:
+                    insert_picture(hwp, pic_path)
+                    picture_count += 1
+                if i < len(lines) - 1:
+                    hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet)
+                    hwp.HParameterSet.HInsertText.Text = "\r\n"
+                    hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet)
+                continue
+
+            level, text = parse_markdown_line(line)
+            converted = convert_line(level, text)
+
+            # 문단 모양 설정
+            set_para_shape(hwp, level)
+
+            # 텍스트 삽입
+            hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet)
+            hwp.HParameterSet.HInsertText.Text = converted
+            hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet)
+
+            # 줄바꿈
+            if i < len(lines) - 1:
+                hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet)
+                hwp.HParameterSet.HInsertText.Text = "\r\n"
+                hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet)
+
+        section_result = {
+            'index': idx,
+            'title': section['title'],
+            'lines': len(lines),
+            'pictures': picture_count
+        }
+        rendered_sections.append(section_result)
+        total_lines += len(lines)
+        total_pictures += picture_count
+
+        print(f"  -> {len(lines)}줄, 이미지 {picture_count}개 완료")
+
+        # 콜백 호출
+        if callback:
+            callback(idx, section['title'], section_result)
+
+        # 섹션 간 구분 (마지막 섹션이 아니면 줄바꿈 추가)
+        if idx < total_sections - 1 and section_index is None:
+            hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet)
+            hwp.HParameterSet.HInsertText.Text = "\r\n"
+            hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet)
+
+    print(f"\n[완료] {len(rendered_sections)}개 섹션, 총 {total_lines}줄, 이미지 {total_pictures}개")
+
+    return {
+        'success': True,
+        'total_sections': total_sections,
+        'rendered_sections': len(rendered_sections),
+        'total_lines': total_lines,
+        'total_pictures': total_pictures,
+        'sections': rendered_sections
+    }
+
+
+def render_section(markdown_text, section_index):
+    """
+    특정 섹션만 렌더링 (간편 함수)
+
+    Args:
+        markdown_text: 전체 마크다운 텍스트
+        section_index: 렌더링할 섹션 인덱스 (0부터 시작)
+
+    Returns:
+        markdown_to_hwp_by_section 결과
+    """
+    return markdown_to_hwp_by_section(markdown_text, section_index=section_index)
 
 
 def markdown_to_hwp_in_table(markdown_text, table_index=0, row=0, col=0):
