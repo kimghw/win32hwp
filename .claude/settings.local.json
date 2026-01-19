@@ -84,7 +84,14 @@
       "Bash(find:*)",
       "Bash(git fetch:*)",
       "Bash(wc:*)",
-      "Bash(taskkill.exe:*)"
+      "Bash(taskkill.exe:*)",
+      "Bash(/usr/bin/pip3:*)",
+      "Bash(/usr/bin/python3 -m pip install:*)",
+      "Bash(apt list:*)",
+      "Bash(sudo apt update:*)",
+      "Bash(sudo apt install:*)",
+      "Bash(pip3 show:*)",
+      "Bash(pip3 list:*)"
     ]
   },
   "hooks": {
