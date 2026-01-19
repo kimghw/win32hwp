@@ -140,7 +140,7 @@ def process_markdown_by_section(hwp, markdown_text, debug=False):
         # 첫 번째 섹션이 아니면 상단에 빈줄 추가
         if idx > 0:
             hwp.HAction.GetDefault("InsertText", hwp.HParameterSet.HInsertText.HSet)
-            hwp.HParameterSet.HInsertText.Text = "\r\n"
+            hwp.HParameterSet.HInsertText.Text = "\r\n\r\n"
             hwp.HAction.Execute("InsertText", hwp.HParameterSet.HInsertText.HSet)
 
         # 1. 섹션 렌더링
