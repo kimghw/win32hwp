@@ -308,10 +308,7 @@ def markdown_to_hwp(markdown_text):
 
 def markdown_to_hwp_in_table(markdown_text, table_index=0, row=0, col=0):
     """마크다운 텍스트를 테이블 셀에 삽입"""
-    try:
-        from .table_info import TableInfo
-    except ImportError:
-        from table_info import TableInfo
+    from table.table_info import TableInfo
 
     hwp = get_hwp()
     if not hwp:
@@ -337,10 +334,7 @@ def markdown_to_hwp_in_table(markdown_text, table_index=0, row=0, col=0):
     table.move_to_first_cell()
 
     # row, col 위치로 이동
-    try:
-        from .table_info import MOVE_RIGHT_OF_CELL, MOVE_DOWN_OF_CELL
-    except ImportError:
-        from table_info import MOVE_RIGHT_OF_CELL, MOVE_DOWN_OF_CELL
+    from table.table_info import MOVE_RIGHT_OF_CELL, MOVE_DOWN_OF_CELL
 
     for _ in range(row):
         hwp.MovePos(MOVE_DOWN_OF_CELL, 0, 0)
@@ -409,8 +403,8 @@ if __name__ == "__main__":
 
     print("\n" + "="*50)
     print("\n한글 문서에 삽입하려면:")
-    print("  from table.table_md_2_hwp import markdown_to_hwp")
+    print("  from md_to_hwp import markdown_to_hwp")
     print("  markdown_to_hwp(마크다운텍스트)")
     print("\n테이블 셀에 삽입하려면:")
-    print("  from table.table_md_2_hwp import markdown_to_hwp_in_table")
+    print("  from md_to_hwp import markdown_to_hwp_in_table")
     print("  markdown_to_hwp_in_table(마크다운텍스트, table_index=0, row=0, col=0)")

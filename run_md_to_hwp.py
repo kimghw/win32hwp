@@ -1,7 +1,7 @@
 # 마크다운 → 한글 문서 변환 + 분리단어/문단 처리
 import os
 import win32com.client as win32
-from table.table_md_2_hwp import markdown_to_hwp, set_hwp
+from md_to_hwp import markdown_to_hwp, set_hwp
 from separated_word import SeparatedWord
 from separated_para import SeparatedPara
 

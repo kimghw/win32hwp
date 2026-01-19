@@ -9,7 +9,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from cursor_utils import get_hwp_instance
-from table.table_md_2_hwp import (
+from md_to_hwp import (
     markdown_to_hwp,
     markdown_to_hwp_in_table,
     set_hwp,

@@ -8,7 +8,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import win32com.client as win32
-from table_md_2_hwp import markdown_to_hwp, set_hwp
+from md_to_hwp import markdown_to_hwp, set_hwp
 
 # 파일 경로
 MD_FILE = os.path.join(os.path.dirname(__file__), "md_content.md")
