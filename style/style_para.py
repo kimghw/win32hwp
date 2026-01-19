@@ -12,7 +12,7 @@
 
 사용 예:
     from style_para import StylePara
-    from cursor_utils import get_hwp_instance
+    from cursor import get_hwp_instance
 
     hwp = get_hwp_instance()
     style = StylePara(hwp)
@@ -30,7 +30,7 @@
 import os
 import yaml
 
-from cursor_utils import get_hwp_instance
+from cursor import get_hwp_instance
 
 # 기본 스타일 파일 경로
 DEFAULT_STYLES_PATH = os.path.join(os.path.dirname(__file__), 'styles.yaml')
@@ -769,7 +769,7 @@ def main():
     print("-" * 60)
     print("""
 from style_para import StylePara
-from cursor_utils import get_hwp_instance
+from cursor import get_hwp_instance
 
 hwp = get_hwp_instance()
 style = StylePara(hwp)

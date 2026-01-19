@@ -8,7 +8,7 @@ import sys
 import os
 import re
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from cursor_utils import get_hwp_instance
+from cursor import get_hwp_instance
 
 # 전역 hwp 인스턴스
 _hwp_instance = None

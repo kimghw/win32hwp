@@ -1,5 +1,5 @@
 """테이블 인식 방법 디버그"""
-from cursor_utils import get_hwp_instance
+from cursor import get_hwp_instance
 
 hwp = get_hwp_instance()
 if not hwp:

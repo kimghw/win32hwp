@@ -2,7 +2,7 @@
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
 
-from cursor_utils import get_hwp_instance
+from cursor import get_hwp_instance
 
 hwp = get_hwp_instance()
 if not hwp:

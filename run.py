@@ -3,7 +3,7 @@
 실행: python run.py
 """
 
-from cursor_utils import get_hwp_instance
+from cursor import get_hwp_instance
 
 
 def main():

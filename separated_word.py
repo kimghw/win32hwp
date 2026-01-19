@@ -22,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from block_selector import BlockSelector
-from cursor_utils import get_hwp_instance
+from cursor import get_hwp_instance
 
 # 모듈 실행 정보 로그
 _MODULE_INFO = {

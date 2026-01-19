@@ -79,7 +79,11 @@
       "Bash(git remote set-url:*)",
       "Bash(git mv:*)",
       "Bash(git -c user.name=\"kim0814\" -c user.email=\"kimghw@krs.co.kr\" commit -m \"$\\(cat <<''EOF''\n마크다운 → 한글 변환 내어쓰기 기능 추가\n\n- HEADING_STYLES에 left_margin, hanging 속성 추가\n- set_para_shape\\(\\) 함수로 문단 모양 설정 \\(내어쓰기\\)\n- pt → HWPUNIT 변환: 1pt = 200 HWPUNIT\n- 레벨별 prefix에 선행 공백 적용 \\(□:0개, ○:2개, -:3개\\)\n- 테스트 파일 추가 \\(test_content.md, test_md_to_hwp.py\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(git rev-list:*)",
+      "Bash(find:*)",
+      "Bash(git fetch:*)",
+      "Bash(wc:*)"
     ]
   },
   "hooks": {

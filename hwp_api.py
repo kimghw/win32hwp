@@ -4,7 +4,7 @@ HWP API 래퍼
 Win32 HWP API를 Python에서 사용하기 편하도록 래핑한 모듈.
 API의 불일치나 버그를 보정하고 일관된 인터페이스 제공.
 """
-from cursor_utils import get_hwp_instance
+from cursor import get_hwp_instance
 from typing import Dict, Tuple, Optional
 
 

@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dataclasses import dataclass
 from typing import Dict, List
-from cursor_utils import get_hwp_instance
+from cursor import get_hwp_instance
 
 
 # MovePos 셀 이동 상수

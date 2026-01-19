@@ -18,7 +18,7 @@ hwp.RegisterModule('FilePathCheckDLL', 'FilePathCheckerModuleExample')  # 필수
 이미 실행 중인 한글에 연결하려면 **Running Object Table(ROT)** 사용:
 
 ```python
-from cursor_utils import get_hwp_instance
+from cursor import get_hwp_instance
 
 hwp = get_hwp_instance()
 if not hwp:

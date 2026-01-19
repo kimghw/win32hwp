@@ -13,7 +13,7 @@
 """
 
 import win32com.client as win32
-from cursor_utils import get_sentences, get_line_range
+from cursor import get_sentences, get_line_range
 
 
 class BlockSelector:

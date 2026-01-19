@@ -19,7 +19,7 @@ import yaml
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from table_manager import TableManager
-from cursor_utils import get_hwp_instance
+from cursor import get_hwp_instance
 
 
 def _count_table_rows(hwp, manager, table_ctrl):

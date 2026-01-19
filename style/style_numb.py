@@ -6,7 +6,7 @@
 
 사용 예:
     from style_numb import StyleNumb
-    from cursor_utils import get_hwp_instance
+    from cursor import get_hwp_instance
 
     hwp = get_hwp_instance()
     numb = StyleNumb(hwp)
@@ -30,7 +30,7 @@ try:
     HAS_YAML = True
 except ImportError:
     HAS_YAML = False
-from cursor_utils import get_hwp_instance
+from cursor import get_hwp_instance
 
 DEFAULT_STYLES_PATH = os.path.join(os.path.dirname(__file__), 'styles.yaml')
 

@@ -17,7 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Tuple
 
-from cursor_utils import get_hwp_instance
+from cursor import get_hwp_instance
 from separated_word import SeparatedWord
 
 
