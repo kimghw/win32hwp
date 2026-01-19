@@ -83,7 +83,8 @@
       "Bash(git rev-list:*)",
       "Bash(find:*)",
       "Bash(git fetch:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(taskkill.exe:*)"
     ]
   },
   "hooks": {

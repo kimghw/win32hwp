@@ -9,8 +9,8 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from dataclasses import dataclass
-from typing import Dict, List
+from dataclasses import dataclass, field
+from typing import Dict, List, Tuple, Optional
 from cursor import get_hwp_instance
 
 
@@ -44,6 +44,10 @@ class TableInfo:
         self.hwp = hwp or get_hwp_instance()
         self.debug = debug
         self.cells: Dict[int, CellInfo] = {}  # list_id -> CellInfo
+        self._coord_map: Dict[Tuple[int, int], int] = {}  # (row, col) -> list_id
+        self._representative_coords: Dict[int, Tuple[int, int]] = {}  # list_id -> 대표 좌표
+        self._cell_coords: Dict[int, List[Tuple[int, int]]] = {}  # list_id -> 해당 셀의 모든 좌표
+        self._table_size: Dict[str, int] = {}  # 캐시된 테이블 크기
 
     def _log(self, msg: str):
         """디버그 메시지 출력"""
@@ -212,6 +216,10 @@ class TableInfo:
         Returns:
             Dict: {'rows': 행수, 'cols': 열수}
         """
+        # 캐시된 값이 있으면 반환
+        if self._table_size:
+            return self._table_size
+
         if not self.cells:
             self.collect_cells_bfs()
 
@@ -255,10 +263,12 @@ class TableInfo:
         total_logical_cells = len(self.cells) + merge_cell_count
         rows = total_logical_cells // cols if cols > 0 else 0
 
-        return {
+        # 캐시에 저장
+        self._table_size = {
             'rows': rows,
             'cols': cols
         }
+        return self._table_size
 
     def _get_cell_merge_info(self) -> Dict[int, Dict]:
         """각 셀의 colspan/rowspan 계산 (내부용)"""
@@ -284,14 +294,13 @@ class TableInfo:
 
         return cell_merge_info
 
-    def build_coordinate_map(self) -> Dict[tuple, int]:
+    def build_coordinate_map(self) -> Dict[Tuple[int, int], int]:
         """
-        6. 테이블 좌표 매핑 (병합되기 전 테이블과 list_id 매핑)
+        테이블 좌표 매핑 (병합 셀 포함)
 
-        첫 셀에서 시작하여 오른쪽으로만 이동하며 좌표 매핑
-        - 열 수 채우면 다음 행으로 넘김
-        - colspan이 있는 셀은 여러 좌표가 같은 list_id
-        - 마지막 list_id 도달 시 종료
+        - colspan/rowspan을 고려하여 모든 좌표를 list_id에 매핑
+        - 병합 셀은 여러 좌표가 같은 list_id를 가짐
+        - 대표 좌표 = 병합 영역의 (min_row, min_col)
 
         Returns:
             Dict[tuple, int]: {(row, col): list_id} 매핑
@@ -307,53 +316,132 @@ class TableInfo:
 
         # 테이블 크기 가져오기
         size = self.get_table_size()
+        total_rows = size['rows']
         total_cols = size['cols']
 
-        # 마지막 list_id
-        last_list_id = max(self.cells.keys())
+        if total_rows == 0 or total_cols == 0:
+            return {}
+
+        # 2D 그리드 초기화 (None = 비어있음)
+        grid = [[None for _ in range(total_cols)] for _ in range(total_rows)]
 
         # 첫 번째 셀로 이동
         if not self.move_to_first_cell():
             return {}
 
-        coord_map = {}  # (row, col) → list_id
-        row = 0
-        col = 0
+        # 초기화
+        self._coord_map = {}
+        self._representative_coords = {}
+        self._cell_coords = {}
 
-        while True:
-            current_id = self._get_list_id()
+        # 모든 셀 순회하며 그리드 채우기 (list_id 순서대로)
+        visited_cells = set()
 
-            # 현재 셀의 colspan 가져오기
-            colspan = 1
-            if current_id in cell_merge:
-                colspan = cell_merge[current_id].get('colspan', 1)
+        # list_id 순으로 정렬하여 처리 (왼쪽 위 → 오른쪽 아래 순서)
+        for list_id in sorted(self.cells.keys()):
+            if list_id in visited_cells:
+                continue
 
-            # colspan만큼 좌표 매핑 (같은 list_id)
-            for i in range(colspan):
-                coord_map[(row, col)] = current_id
-                col += 1
+            visited_cells.add(list_id)
 
-                # 열 수 채우면 다음 행
-                if col >= total_cols:
-                    row += 1
-                    col = 0
+            # 병합 정보
+            colspan = cell_merge.get(list_id, {}).get('colspan', 1)
+            rowspan = cell_merge.get(list_id, {}).get('rowspan', 1)
 
-            # 마지막 list_id 도달 시 종료
-            if current_id == last_list_id:
-                break
+            # 이 셀의 시작 위치 찾기 (그리드에서 비어있는 첫 위치)
+            start_row, start_col = None, None
+            for r in range(total_rows):
+                for c in range(total_cols):
+                    if grid[r][c] is None:
+                        # 이 위치에서 시작할 수 있는지 확인
+                        can_place = True
+                        for dr in range(rowspan):
+                            for dc in range(colspan):
+                                rr, cc = r + dr, c + dc
+                                if rr >= total_rows or cc >= total_cols or grid[rr][cc] is not None:
+                                    can_place = False
+                                    break
+                            if not can_place:
+                                break
 
-            # 오른쪽으로만 이동
-            before = current_id
-            self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
-            after = self._get_list_id()
+                        if can_place:
+                            start_row, start_col = r, c
+                            break
+                if start_row is not None:
+                    break
 
-            if after == before:
-                break
+            if start_row is None:
+                continue
 
-        return coord_map
+            # 해당 셀이 차지하는 모든 좌표 기록
+            cell_coords = []
+            for dr in range(rowspan):
+                for dc in range(colspan):
+                    r, c = start_row + dr, start_col + dc
+                    if r < total_rows and c < total_cols:
+                        grid[r][c] = list_id
+                        self._coord_map[(r, c)] = list_id
+                        cell_coords.append((r, c))
+
+            # 대표 좌표 = (min_row, min_col) = 가장 위, 가장 왼쪽
+            if cell_coords:
+                rep_coord = (min(r for r, c in cell_coords),
+                             min(c for r, c in cell_coords))
+                self._representative_coords[list_id] = rep_coord
+                self._cell_coords[list_id] = cell_coords
+
+        return self._coord_map
+
+    def get_representative_coord(self, list_id: int) -> Optional[Tuple[int, int]]:
+        """
+        병합 셀의 대표 좌표 반환 (가장 위, 가장 왼쪽)
+
+        Args:
+            list_id: 셀의 list_id
+
+        Returns:
+            (row, col) 대표 좌표, 없으면 None
+        """
+        if not self._representative_coords:
+            self.build_coordinate_map()
+        return self._representative_coords.get(list_id)
+
+    def get_cell_coords(self, list_id: int) -> List[Tuple[int, int]]:
+        """
+        셀이 차지하는 모든 좌표 반환
+
+        Args:
+            list_id: 셀의 list_id
+
+        Returns:
+            [(row, col), ...] 좌표 리스트
+        """
+        if not self._cell_coords:
+            self.build_coordinate_map()
+        return self._cell_coords.get(list_id, [])
+
+    def get_merge_info(self, list_id: int) -> Dict:
+        """
+        셀의 병합 정보 반환
+
+        Returns:
+            {'colspan': int, 'rowspan': int, 'representative': (row, col), 'coords': [...]}
+        """
+        if not self._representative_coords:
+            self.build_coordinate_map()
+
+        cell_merge = self._get_cell_merge_info()
+        merge = cell_merge.get(list_id, {'colspan': 1, 'rowspan': 1})
+
+        return {
+            'colspan': merge.get('colspan', 1),
+            'rowspan': merge.get('rowspan', 1),
+            'representative': self._representative_coords.get(list_id),
+            'coords': self._cell_coords.get(list_id, [])
+        }
 
     def print_coordinate_map(self):
-        """좌표 매핑 정보 출력"""
+        """좌표 매핑 정보 출력 (대표 좌표 포함)"""
         coord_map = self.build_coordinate_map()
 
         if not coord_map:
@@ -364,7 +452,7 @@ class TableInfo:
         max_row = max(r for r, c in coord_map.keys())
         max_col = max(c for r, c in coord_map.keys())
 
-        print(f"\n=== 6. 테이블 좌표 매핑 ({max_row+1}행 x {max_col+1}열) ===")
+        print(f"\n=== 테이블 좌표 매핑 ({max_row+1}행 x {max_col+1}열) ===")
         print("\n[좌표 → list_id 매핑]")
 
         for row in range(max_row + 1):
@@ -374,6 +462,17 @@ class TableInfo:
                 list_id = coord_map.get((row, col), '-')
                 cells.append(f"({row},{col})→{list_id}")
             print(row_str + "  ".join(cells))
+
+        # 병합 셀 정보 출력
+        merged_cells = [(lid, coords) for lid, coords in self._cell_coords.items() if len(coords) > 1]
+        if merged_cells:
+            print("\n[병합 셀 정보]")
+            for list_id, coords in merged_cells:
+                rep = self._representative_coords.get(list_id)
+                merge = self._get_cell_merge_info().get(list_id, {})
+                colspan = merge.get('colspan', 1)
+                rowspan = merge.get('rowspan', 1)
+                print(f"  list_id={list_id}: {rowspan}x{colspan} 병합, 대표좌표={rep}, 좌표={coords}")
 
     def find_all_tables(self) -> List[Dict]:
         """
