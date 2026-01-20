@@ -91,7 +91,8 @@
       "Bash(sudo apt update:*)",
       "Bash(sudo apt install:*)",
       "Bash(pip3 show:*)",
-      "Bash(pip3 list:*)"
+      "Bash(pip3 list:*)",
+      "Bash(kill:*)"
     ]
   },
   "hooks": {
