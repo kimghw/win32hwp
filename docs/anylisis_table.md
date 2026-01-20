@@ -38,7 +38,7 @@
 | `first_col` | 특정 row의 첫 번째 컬럼 값 |
 | `last_col` | 특정 row의 마지막 컬럼 값 |
 | `first_row` | 특정 컬럼의 첫 번째 행 값 |
-| `last_row` | 특정 컬럼의 마지막 행 값 |
+| `bottom_row` | 특정 컬럼의 마지막 행 값 |
 
 ### 셀 병합 용어
 
@@ -52,6 +52,11 @@
 ---
 
 ## 셀 경계 판별 함수
+
+
+
+### table_origin : 테이블의 첫번째 셀의 list_id
+### table_end : bottom_rows의 마지막 셀의 list_id
 
 ### move_down_left_right: 하/좌/우 각각 이동 결과
 
@@ -149,13 +154,20 @@ def move_up_right_down(hwp, target_list_id):
     }
 ```
 
----
+## check_boudary_table
+테이블의 모든 셀을 순회 하면서 다음의 순서대로 실행한다. 
 
-## 함수 요약
+1. table_origine 계산
+2. 모든 셀을 순회 하면서 first_rows와 bottom_rows를 계산하고 리스트로 저장한다. 
+bottom_rows의 마지막 list_id는 table_end 이다. 
 
-| 함수명 | 설명 | 반환값 |
+| 함수명 | 설명 | 반환값 | 사용함수 |
 |--------|------|--------|
-| `check_first_cols` | 하/좌/우 각각 이동 결과 | `dict` {방향: (list_id, has_tbl)} |
-| `check_first_rows` | 위로 이동 시 tbl 밖이면 True | `bool` |
-| `check_bottom_rows` | 아래로 이동 시 tbl 밖이면 True | `bool` |
-| `move_vertical_directions` | 상/우/하 각각 이동 결과 | `dict` {방향: (list_id, has_tbl)} |
+| `first_rows` | 첫 번째 행에 속한 셀들 (리스트) | check_first_row_cell
+| `bottom_rows` | 마지막 행에 속한 셀들 (리스트) | check_bottom_row_cell
+
+3. 모든 셀을 순회 하면서 first_cols와 ㅣlast_cols를 계산하고 리스트로 저장한다.
+
+| `first_cols` | 첫 번째 컬럼에 속한 셀들 (리스트) | move_down_left_right
+| `last_cols`  | 마지막 컬럼에 속한 셀들 (리스트)  | move_up_right_down
+
