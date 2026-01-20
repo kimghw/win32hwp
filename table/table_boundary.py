@@ -10,7 +10,8 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from dataclasses import dataclass, field
+import json
+from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Tuple, Optional
 
 try:
@@ -80,6 +81,26 @@ class CellCoordinateResult:
     max_row: int = 0    # 최대 행 번호
     max_col: int = 0    # 최대 열 번호
     traversal_order: List[int] = field(default_factory=list)  # 순회 순서
+
+
+@dataclass
+class CellAdjacency:
+    """셀의 인접 노드 정보"""
+    list_id: int
+    row: int = 0
+    col: int = 0
+    left: List[int] = field(default_factory=list)    # 왼쪽 인접 노드들
+    right: List[int] = field(default_factory=list)   # 오른쪽 인접 노드들
+    up: List[int] = field(default_factory=list)      # 위쪽 인접 노드들
+    down: List[int] = field(default_factory=list)    # 아래쪽 인접 노드들
+
+
+@dataclass
+class CellAdjacencyResult:
+    """모든 셀의 인접 관계 결과"""
+    nodes: Dict[int, CellAdjacency] = field(default_factory=dict)  # list_id -> CellAdjacency
+    max_row: int = 0
+    max_col: int = 0
 
 
 class TableBoundary:
@@ -1156,6 +1177,156 @@ class TableBoundary:
                 print(f"\n[행 {current_row}]")
             print(f"  ({cell.row}, {cell.col}): list_id={cell.list_id}, visit={cell.visit_count}")
 
+    def build_cell_adjacency(self, coord_result: CellCoordinateResult = None) -> CellAdjacencyResult:
+        """
+        모든 셀의 인접 노드(상/하/좌/우) 계산 - 양방향 관계 활용
+
+        알고리즘:
+        1. 각 셀에서 상/하/좌/우로 커서 이동하여 인접 셀 1개씩 찾음
+        2. 양방향 관계를 활용: A→B 이면 B→A도 성립
+           예: 13의 up이 3이면, 3의 down에 13 추가
+        3. 이를 통해 병합 셀(13)이 여러 셀(3~8)과 인접한 경우도 처리
+
+        Args:
+            coord_result: 셀 좌표 매핑 결과 (없으면 새로 계산)
+
+        Returns:
+            CellAdjacencyResult: 모든 셀의 인접 관계
+        """
+        if coord_result is None:
+            coord_result = self.map_cell_coordinates_v4()
+
+        result = CellAdjacencyResult(
+            max_row=coord_result.max_row,
+            max_col=coord_result.max_col
+        )
+
+        self._log(f"\n[인접 관계] 총 {len(coord_result.cells)}개 노드")
+
+        # 1단계: 모든 셀에 대해 빈 CellAdjacency 생성
+        for list_id, cell in coord_result.cells.items():
+            result.nodes[list_id] = CellAdjacency(
+                list_id=list_id,
+                row=cell.row,
+                col=cell.col
+            )
+
+        # 2단계: 각 셀에서 커서 이동으로 인접 셀 찾고 양방향 관계 설정
+        for list_id, cell in coord_result.cells.items():
+            adjacency = result.nodes[list_id]
+
+            # 왼쪽 인접
+            self.hwp.SetPos(list_id, 0, 0)
+            self.hwp.MovePos(MOVE_LEFT_OF_CELL, 0, 0)
+            left_id, _, _ = self.hwp.GetPos()
+            if left_id != list_id and left_id in coord_result.cells:
+                if left_id not in adjacency.left:
+                    adjacency.left.append(left_id)
+                # 양방향: left_id의 right에 현재 셀 추가
+                if list_id not in result.nodes[left_id].right:
+                    result.nodes[left_id].right.append(list_id)
+
+            # 오른쪽 인접
+            self.hwp.SetPos(list_id, 0, 0)
+            self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
+            right_id, _, _ = self.hwp.GetPos()
+            if right_id != list_id and right_id in coord_result.cells:
+                if right_id not in adjacency.right:
+                    adjacency.right.append(right_id)
+                # 양방향: right_id의 left에 현재 셀 추가
+                if list_id not in result.nodes[right_id].left:
+                    result.nodes[right_id].left.append(list_id)
+
+            # 위쪽 인접
+            self.hwp.SetPos(list_id, 0, 0)
+            self.hwp.MovePos(MOVE_UP_OF_CELL, 0, 0)
+            up_id, _, _ = self.hwp.GetPos()
+            if up_id != list_id and up_id in coord_result.cells:
+                if up_id not in adjacency.up:
+                    adjacency.up.append(up_id)
+                # 양방향: up_id의 down에 현재 셀 추가
+                if list_id not in result.nodes[up_id].down:
+                    result.nodes[up_id].down.append(list_id)
+
+            # 아래쪽 인접
+            self.hwp.SetPos(list_id, 0, 0)
+            self.hwp.MovePos(MOVE_DOWN_OF_CELL, 0, 0)
+            down_id, _, _ = self.hwp.GetPos()
+            if down_id != list_id and down_id in coord_result.cells:
+                if down_id not in adjacency.down:
+                    adjacency.down.append(down_id)
+                # 양방향: down_id의 up에 현재 셀 추가
+                if list_id not in result.nodes[down_id].up:
+                    result.nodes[down_id].up.append(list_id)
+
+        # 3단계: 디버그 출력
+        for list_id, adjacency in result.nodes.items():
+            cell = coord_result.cells[list_id]
+            self._log(f"  노드 {list_id} ({cell.row},{cell.col}): "
+                      f"←{adjacency.left} →{adjacency.right} "
+                      f"↑{adjacency.up} ↓{adjacency.down}")
+
+        return result
+
+    def print_cell_adjacency(self, adjacency_result: CellAdjacencyResult = None):
+        """셀 인접 관계 출력"""
+        if adjacency_result is None:
+            adjacency_result = self.build_cell_adjacency()
+
+        print("\n=== 셀 인접 관계 (노드 그래프) ===")
+        print(f"총 노드 수: {len(adjacency_result.nodes)}")
+        print(f"최대 행: {adjacency_result.max_row}, 최대 열: {adjacency_result.max_col}")
+
+        # 행 기준 정렬하여 출력
+        sorted_nodes = sorted(adjacency_result.nodes.values(), key=lambda n: (n.row, n.col))
+
+        current_row = -1
+        for node in sorted_nodes:
+            if node.row != current_row:
+                current_row = node.row
+                print(f"\n[행 {current_row}]")
+
+            left_str = f"←{node.left}" if node.left else "←[]"
+            right_str = f"→{node.right}" if node.right else "→[]"
+            up_str = f"↑{node.up}" if node.up else "↑[]"
+            down_str = f"↓{node.down}" if node.down else "↓[]"
+
+            print(f"  노드 {node.list_id} ({node.row},{node.col}): {left_str} {right_str} {up_str} {down_str}")
+
+    def save_adjacency_to_json(self, adjacency_result: CellAdjacencyResult = None,
+                                filepath: str = None) -> str:
+        """
+        인접 관계를 JSON 파일로 저장
+
+        Args:
+            adjacency_result: 인접 관계 결과 (없으면 새로 계산)
+            filepath: 저장 경로 (없으면 기본 경로 사용)
+
+        Returns:
+            str: 저장된 파일 경로
+        """
+        if adjacency_result is None:
+            adjacency_result = self.build_cell_adjacency()
+
+        if filepath is None:
+            filepath = os.path.join(os.path.dirname(__file__), '..', 'cell_adjacency.json')
+
+        # dataclass를 dict로 변환
+        data = {
+            'max_row': adjacency_result.max_row,
+            'max_col': adjacency_result.max_col,
+            'nodes': {
+                str(list_id): asdict(node)
+                for list_id, node in adjacency_result.nodes.items()
+            }
+        }
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        print(f"인접 관계 저장됨: {filepath}")
+        return filepath
+
 
 if __name__ == "__main__":
     from cursor import get_hwp_instance
@@ -1184,6 +1355,13 @@ if __name__ == "__main__":
     size_results = boundary.sub_table_by_size(result)
     boundary.print_sub_table_by_size(size_results)
 
-    # 셀 좌표 매핑 (v3: 서브셀 기반)
-    coord_result = boundary.map_cell_coordinates_v3(result)
+    # 셀 좌표 매핑 (v4: 서브셀 + 위쪽 셀 기준 열 조정)
+    coord_result = boundary.map_cell_coordinates_v4(result)
     boundary.print_cell_coordinates(coord_result)
+
+    # 셀 인접 관계 (노드 그래프)
+    adjacency_result = boundary.build_cell_adjacency(coord_result)
+    boundary.print_cell_adjacency(adjacency_result)
+
+    # JSON 파일로 저장
+    boundary.save_adjacency_to_json(adjacency_result)
