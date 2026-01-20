@@ -65,8 +65,8 @@ def main():
     print("경계 분석 중...")
     result = boundary.check_boundary_table()
 
-    print("좌표 매핑 중 (v3: 서브셀 기반)...")
-    coord_result = boundary.map_cell_coordinates_v3(result)
+    print("좌표 매핑 중 (v4: 서브셀 + 위쪽 셀 기준 열 조정)...")
+    coord_result = boundary.map_cell_coordinates_v4(result)
 
     print(f"총 {len(coord_result.cells)}개 셀에 좌표 삽입 중...")
 

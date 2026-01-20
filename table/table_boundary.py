@@ -1023,10 +1023,124 @@ class TableBoundary:
 
         return result
 
+    def _adjust_column_by_upper_cells(self, result: CellCoordinateResult) -> CellCoordinateResult:
+        """
+        2행부터 위쪽 셀을 기준으로 열 번호 조정
+
+        알고리즘:
+        1. 2행부터 각 셀에 대해
+        2. 커서를 0행까지 위로 올리면서 모든 위쪽 셀의 열 중 가장 큰 값을 찾음
+        3. 열 번호 = max(위쪽 셀들의 최대 열, 왼쪽 셀의 열 + 1)
+        4. 0행은 그대로 유지
+
+        Args:
+            result: 기존 좌표 매핑 결과
+
+        Returns:
+            CellCoordinateResult: 열 번호가 조정된 결과
+        """
+        if not result.cells:
+            return result
+
+        # 행별로 셀 그룹화
+        rows: Dict[int, List[CellCoordinate]] = {}
+        for cell in result.cells.values():
+            if cell.row not in rows:
+                rows[cell.row] = []
+            rows[cell.row].append(cell)
+
+        # 각 행 내에서 열 기준 정렬
+        for row_idx in rows:
+            rows[row_idx].sort(key=lambda c: c.col)
+
+        self._log(f"\n[열 조정] 시작, 총 {len(rows)}개 행")
+
+        # 0행은 그대로, 1행부터 조정
+        for row_idx in sorted(rows.keys()):
+            if row_idx == 0:
+                continue
+
+            cells_in_row = rows[row_idx]
+            self._log(f"\n[열 조정] {row_idx}행 처리 ({len(cells_in_row)}개 셀)")
+
+            for i, cell in enumerate(cells_in_row):
+                # 왼쪽 셀의 열 번호 (없으면 -1)
+                left_col = cells_in_row[i - 1].col if i > 0 else -1
+
+                # 위쪽 셀들 찾기: 0행까지 커서를 위로 올리면서 최대 열 값 찾기
+                max_upper_col = -1
+                visited_upper = []
+
+                self.hwp.SetPos(cell.list_id, 0, 0)
+                current_id = cell.list_id
+
+                loop_count = 0
+                while loop_count < 50:  # 무한루프 방지
+                    loop_count += 1
+                    self.hwp.MovePos(MOVE_UP_OF_CELL, 0, 0)  # moveUpOfCell = 102
+                    upper_id, _, _ = self.hwp.GetPos()
+
+                    # 더 이상 위로 이동 못하면 종료
+                    if upper_id == current_id:
+                        break
+
+                    # 위쪽 셀의 열 번호 확인
+                    if upper_id in result.cells:
+                        upper_col = result.cells[upper_id].col
+                        upper_row = result.cells[upper_id].row
+                        visited_upper.append((upper_id, upper_col, upper_row))
+                        if upper_col > max_upper_col:
+                            max_upper_col = upper_col
+
+                        # 0행에 도달하면 종료
+                        if upper_row == 0:
+                            break
+
+                    current_id = upper_id
+
+                if visited_upper:
+                    self._log(f"  셀 {cell.list_id}: 위쪽 셀들 {visited_upper}, max_upper_col={max_upper_col}")
+
+                # 새 열 번호 = max(위쪽 셀들의 최대 열, 왼쪽 셀 열 + 1)
+                new_col = max(max_upper_col, left_col + 1)
+
+                if new_col != cell.col:
+                    self._log(f"  셀 {cell.list_id}: col {cell.col} → {new_col} (max_upper={max_upper_col}, left+1={left_col + 1})")
+                    result.cells[cell.list_id].col = new_col
+
+            # 행 내에서 다시 정렬 (열 번호가 변경되었으므로)
+            rows[row_idx].sort(key=lambda c: c.col)
+
+        # max_col 재계산
+        result.max_col = max(c.col for c in result.cells.values()) if result.cells else 0
+
+        return result
+
+    def map_cell_coordinates_v4(self, boundary_result: TableBoundaryResult = None) -> CellCoordinateResult:
+        """
+        v3 + 위쪽 셀 기준 열 조정
+
+        1단계: v3로 기본 좌표 매핑
+        2단계: 2행부터 위쪽 셀 기준으로 열 번호 조정
+
+        Args:
+            boundary_result: 경계 분석 결과
+
+        Returns:
+            CellCoordinateResult: 최종 좌표 매핑 결과
+        """
+        # 1단계: v3로 기본 매핑
+        result = self.map_cell_coordinates_v3(boundary_result)
+
+        # 2단계: 열 조정
+        result = self._adjust_column_by_upper_cells(result)
+
+        return result
+
     def print_cell_coordinates(self, result: CellCoordinateResult = None):
         """셀 좌표 매핑 결과 출력"""
         if result is None:
-            result = self.map_cell_coordinates_v3()
+            result = self.map_cell_coordinates_v4()
 
         print("\n=== 셀 좌표 매핑 결과 ===")
         print(f"최대 행: {result.max_row}, 최대 열: {result.max_col}")
