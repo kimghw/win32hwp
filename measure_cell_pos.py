@@ -42,8 +42,8 @@ def collect_split_cells(cell_id, start_x, start_y, row_end_y, visited_global):
     end_x = start_x + width
     end_y = start_y + height
 
-    x_levels.add(end_x)
-    y_levels.add(end_y)
+    x_levels.add(start_x)
+    y_levels.add(start_y)
 
     # 셀 위치 저장
     if cell_id not in cell_positions:
@@ -102,9 +102,9 @@ for row_idx, row_start in enumerate(first_cols):
         start_y = row_start_y
         end_y = row_start_y + height
 
-        # X, Y 레벨 추가
-        x_levels.add(end_x)
-        y_levels.add(end_y)
+        # X, Y 레벨 추가 (셀의 좌상단 기준)
+        x_levels.add(start_x)
+        y_levels.add(start_y)
 
         # 셀 위치 저장
         cell_positions[current_id] = {
@@ -147,15 +147,33 @@ for row_idx, row_start in enumerate(first_cols):
 x_levels = sorted(x_levels)
 y_levels = sorted(y_levels)
 
-print(f"\n=== X 레벨 ===")
+# === 근접한 레벨 병합 (TOLERANCE 이내 값들을 하나로) ===
+TOLERANCE = 3
+
+
+def merge_close_levels(levels, tolerance):
+    """근접한 레벨들을 병합하여 대표값 리스트 반환"""
+    if not levels:
+        return []
+
+    merged = [levels[0]]
+    for level in levels[1:]:
+        if level - merged[-1] <= tolerance:
+            # 근접한 값은 무시 (첫 번째 값을 대표값으로 유지)
+            pass
+        else:
+            merged.append(level)
+    return merged
+
+
+x_levels = merge_close_levels(x_levels, TOLERANCE)
+y_levels = merge_close_levels(y_levels, TOLERANCE)
+
+print(f"\n=== X 레벨 (병합 후) ===")
 print(f"총 {len(x_levels)}개: {x_levels}")
 
-print(f"\n=== Y 레벨 ===")
+print(f"\n=== Y 레벨 (병합 후) ===")
 print(f"총 {len(y_levels)}개: {y_levels}")
-
-
-# === 좌표를 레벨 인덱스로 변환 (±10 허용) ===
-TOLERANCE = 10
 
 
 def find_level_index(value, levels):
