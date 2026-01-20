@@ -49,4 +49,113 @@
 | `row_span` | 행 방향 병합 크기 (세로로 몇 칸 차지) |
 | `col_span` | 열 방향 병합 크기 (가로로 몇 칸 차지) |
 
---
+---
+
+## 셀 경계 판별 함수
+
+### check_first_cols: 하/좌/우 각각 이동 결과
+
+특정 셀에서 하, 좌, 우 방향으로 **각각** 이동했을 때 `list_id`와 `has_tbl`을 반환한다.
+
+```python
+def check_first_cols(hwp, target_list_id):
+    """
+    특정 셀에서 하/좌/우 각각 이동 시 list_id와 has_tbl 반환
+
+    Returns:
+        dict: {
+            'down': (list_id, has_tbl),
+            'left': (list_id, has_tbl),
+            'right': (list_id, has_tbl)
+        }
+    """
+    def move_and_check(action):
+        hwp.SetPos(target_list_id, 0, 0)
+        hwp.HAction.Run(action)
+        list_id, _, _ = hwp.GetPos()
+        parent = hwp.ParentCtrl
+        has_tbl = parent and parent.CtrlID == "tbl"
+        return (list_id, has_tbl)
+
+    return {
+        'down': move_and_check("MoveDown"),
+        'left': move_and_check("MoveLeft"),
+        'right': move_and_check("MoveRight")
+    }
+```
+
+---
+
+### check_first_rows: 첫 번째 행 여부 판별
+
+특정 셀에서 위로 이동 시 `has_tbl`이 `False`면 `True` 반환.
+
+```python
+def check_first_rows(hwp, target_list_id):
+    """위로 이동 시 tbl 밖이면 True (첫 번째 행)"""
+    hwp.SetPos(target_list_id, 0, 0)
+    hwp.HAction.Run("MoveUp")
+    parent = hwp.ParentCtrl
+    has_tbl = parent and parent.CtrlID == "tbl"
+    return not has_tbl
+```
+
+---
+
+### check_bottom_rows: 마지막 행 여부 판별
+
+특정 셀에서 아래로 이동 시 `has_tbl`이 `False`면 `True` 반환.
+
+```python
+def check_bottom_rows(hwp, target_list_id):
+    """아래로 이동 시 tbl 밖이면 True (마지막 행)"""
+    hwp.SetPos(target_list_id, 0, 0)
+    hwp.HAction.Run("MoveDown")
+    parent = hwp.ParentCtrl
+    has_tbl = parent and parent.CtrlID == "tbl"
+    return not has_tbl
+```
+
+---
+
+### move_vertical_directions: 상/우/하 각각 이동 결과
+
+특정 셀에서 상, 우, 하 방향으로 **각각** 이동했을 때 `list_id`와 `has_tbl`을 반환한다.
+
+```python
+def move_vertical_directions(hwp, target_list_id):
+    """
+    특정 셀에서 상/우/하 각각 이동 시 list_id와 has_tbl 반환
+
+    Returns:
+        dict: {
+            'up': (list_id, has_tbl),
+            'right': (list_id, has_tbl),
+            'down': (list_id, has_tbl)
+        }
+    """
+    def move_and_check(action):
+        hwp.SetPos(target_list_id, 0, 0)
+        hwp.HAction.Run(action)
+        list_id, _, _ = hwp.GetPos()
+        parent = hwp.ParentCtrl
+        has_tbl = parent and parent.CtrlID == "tbl"
+        return (list_id, has_tbl)
+
+    return {
+        'up': move_and_check("MoveUp"),
+        'right': move_and_check("MoveRight"),
+        'down': move_and_check("MoveDown")
+    }
+```
+
+---
+
+## 함수 요약
+
+| 함수명 | 설명 | 반환값 |
+|--------|------|--------|
+| `check_first_cols` | 하/좌/우 각각 이동 결과 | `dict` {방향: (list_id, has_tbl)} |
+| `check_first_rows` | 위로 이동 시 tbl 밖이면 True | `bool` |
+| `check_bottom_rows` | 아래로 이동 시 tbl 밖이면 True | `bool` |
+| `move_vertical_directions` | 상/우/하 각각 이동 결과 | `dict` {방향: (list_id, has_tbl)} |
