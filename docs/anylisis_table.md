@@ -214,3 +214,16 @@ def move_up_right_down(hwp, target_list_id):
 | `first_cols` | 첫 번째 컬럼에 속한 셀들 | table_origin에서 아래로 순회 |
 | `last_cols` | 마지막 컬럼에 속한 셀들 | first_rows 마지막에서 move_up_right_down 활용 |
 | `table_end` | 테이블 끝점 | last_cols의 마지막 값 |
+
+
+---
+
+## sub_table (행 단위 서브셋 분할)
+
+테이블을 행 단위로 서브셋으로 분할하는 알고리즘.
+
+1. table_origin 에서 우측으로 이동하면서 list_id와 셀의 높이와 넓이를 수산힌다.
+2. 우측으로 이동하면서 list_id가 이동 전과 이동 후가 동일하면 종료한다. 
+3. 우측으로 이동하면서 다음 first_cols 가 나올때까지 반복한다. 
+4. 이동하면서, 크기가 달라지는 셀을 새로운 subcell로 정의 한다. 
+5. first_cols 원소에 대해서 모두 반복작업을 수행하고 마지막 first_cols의 원소에서는 우측으로 이동했을때 list_id가 동일하면 정지한다. 

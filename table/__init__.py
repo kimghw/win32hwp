@@ -12,4 +12,10 @@ from .table_info import (
     MOVE_BOTTOM_OF_CELL,
 )
 from .table_field import TableField, FieldInfo
-from .table_boundary import TableBoundary, TableBoundaryResult
+from .table_boundary import (
+    TableBoundary,
+    TableBoundaryResult,
+    SubTableResult,
+    SubCellInfo,
+    RowSubsetResult,
+)
