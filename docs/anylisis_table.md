@@ -53,12 +53,12 @@
 
 ## 셀 경계 판별 함수
 
-### check_first_cols: 하/좌/우 각각 이동 결과
+### move_down_left_right: 하/좌/우 각각 이동 결과
 
 특정 셀에서 하, 좌, 우 방향으로 **각각** 이동했을 때 `list_id`와 `has_tbl`을 반환한다.
 
 ```python
-def check_first_cols(hwp, target_list_id):
+def move_down_left_right(hwp, target_list_id):
     """
     특정 셀에서 하/좌/우 각각 이동 시 list_id와 has_tbl 반환
 
@@ -86,12 +86,12 @@ def check_first_cols(hwp, target_list_id):
 
 ---
 
-### check_first_rows: 첫 번째 행 여부 판별
+### check_first_row_cell: 첫 번째 행 여부 판별
 
 특정 셀에서 위로 이동 시 `has_tbl`이 `False`면 `True` 반환.
 
 ```python
-def check_first_rows(hwp, target_list_id):
+def check_first_row_cell(hwp, target_list_id):
     """위로 이동 시 tbl 밖이면 True (첫 번째 행)"""
     hwp.SetPos(target_list_id, 0, 0)
     hwp.HAction.Run("MoveUp")
@@ -102,12 +102,12 @@ def check_first_rows(hwp, target_list_id):
 
 ---
 
-### check_bottom_rows: 마지막 행 여부 판별
+### check_bottom_row_cell: 마지막 행 여부 판별
 
 특정 셀에서 아래로 이동 시 `has_tbl`이 `False`면 `True` 반환.
 
 ```python
-def check_bottom_rows(hwp, target_list_id):
+def check_bottom_row_cell(hwp, target_list_id):
     """아래로 이동 시 tbl 밖이면 True (마지막 행)"""
     hwp.SetPos(target_list_id, 0, 0)
     hwp.HAction.Run("MoveDown")
@@ -118,12 +118,12 @@ def check_bottom_rows(hwp, target_list_id):
 
 ---
 
-### move_vertical_directions: 상/우/하 각각 이동 결과
+### move_up_right_down: 상/우/하 각각 이동 결과
 
 특정 셀에서 상, 우, 하 방향으로 **각각** 이동했을 때 `list_id`와 `has_tbl`을 반환한다.
 
 ```python
-def move_vertical_directions(hwp, target_list_id):
+def move_up_right_down(hwp, target_list_id):
     """
     특정 셀에서 상/우/하 각각 이동 시 list_id와 has_tbl 반환
 
