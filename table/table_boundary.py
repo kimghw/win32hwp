@@ -84,6 +84,37 @@ class CellCoordinateResult:
 
 
 @dataclass
+class CellWidthInfo:
+    """셀 너비 정보"""
+    list_id: int
+    width: int = 0              # 셀 너비 (HWPUNIT)
+    height: int = 0             # 셀 높이 (HWPUNIT)
+    start_x: int = 0            # 셀 시작 x 좌표
+    end_x: int = 0              # 셀 끝 x 좌표
+    col_index: int = 0          # 행 내 열 인덱스 (0부터)
+
+
+@dataclass
+class RowWidthResult:
+    """행별 셀 너비 결과"""
+    row_index: int = 0                              # first_cols 인덱스 (행 번호)
+    start_cell: int = 0                             # 행 시작 셀 (first_col)
+    end_cell: int = 0                               # 행 끝 셀 (last_col)
+    cells: List[CellWidthInfo] = field(default_factory=list)  # 행의 모든 셀 너비 정보
+    total_width: int = 0                            # 행 전체 너비
+    start_y: int = 0                                # 행 시작 y 좌표
+    end_y: int = 0                                  # 행 끝 y 좌표
+    row_height: int = 0                             # 행 높이 (첫 번째 셀 기준)
+
+
+@dataclass
+class TableWidthResult:
+    """테이블 전체 셀 너비 결과"""
+    rows: List[RowWidthResult] = field(default_factory=list)
+    max_width: int = 0                              # 가장 넓은 행의 너비
+
+
+@dataclass
 class CellAdjacency:
     """셀의 인접 노드 정보"""
     list_id: int
@@ -1293,6 +1324,191 @@ class TableBoundary:
 
             print(f"  노드 {node.list_id} ({node.row},{node.col}): {left_str} {right_str} {up_str} {down_str}")
 
+    def _find_matching_last_col(self, start_cell: int, last_cols: List[int]) -> Optional[int]:
+        """
+        start_cell에서 오른쪽으로 이동하여 해당 행의 last_col 찾기
+
+        Args:
+            start_cell: 행 시작 셀
+            last_cols: 정렬된 last_cols 리스트
+
+        Returns:
+            해당 행의 last_col, 없으면 None
+        """
+        last_cols_set = set(last_cols)
+        visited = set()
+        current_id = start_cell
+        visited.add(current_id)
+
+        max_steps = 1000
+        for _ in range(max_steps):
+            if current_id in last_cols_set:
+                return current_id
+
+            self.hwp.SetPos(current_id, 0, 0)
+            self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
+            next_id, _, _ = self.hwp.GetPos()
+
+            if next_id == current_id:
+                return current_id  # 더 이상 이동 불가 = 마지막 열
+
+            if next_id in visited:
+                current_id = next_id
+                continue
+
+            visited.add(next_id)
+            current_id = next_id
+
+        return None
+
+    def calculate_row_widths(self, boundary_result: TableBoundaryResult = None) -> TableWidthResult:
+        """
+        first_cols에서 last_cols까지 오른쪽으로 이동하면서 셀 너비 누적 계산
+
+        알고리즘:
+        1. first_cols와 last_cols를 y좌표 기준으로 정렬하여 행 매칭
+        2. 각 first_col에서 시작하여 해당 행의 last_col까지만 이동
+        3. 이동할 때마다 셀 너비를 수집하고 누적 (이미 방문한 셀은 건너뜀)
+        4. 해당 행의 last_col에 도달하면 행 종료
+        5. 다음 first_col을 만나면 종료 (다른 행으로 넘어감)
+
+        Args:
+            boundary_result: 경계 분석 결과 (없으면 새로 계산)
+
+        Returns:
+            TableWidthResult: 테이블 전체 셀 너비 결과
+        """
+        if boundary_result is None:
+            boundary_result = self.check_boundary_table()
+
+        result = TableWidthResult()
+
+        # first_cols와 last_cols 정렬
+        first_cols = self._sort_first_cols_by_position(boundary_result.first_cols)
+        last_cols = self._sort_first_cols_by_position(boundary_result.last_cols)
+        first_cols_set = set(first_cols)
+        last_cols_set = set(last_cols)
+
+        self._log(f"[너비 계산] first_cols: {first_cols}")
+        self._log(f"[너비 계산] last_cols: {last_cols}")
+
+        cumulative_y = 0  # y 좌표 누적
+
+        for row_idx, start_cell in enumerate(first_cols):
+            row_result = RowWidthResult(
+                row_index=row_idx,
+                start_cell=start_cell,
+                start_y=cumulative_y
+            )
+
+            # 이번 행에서 이미 방문한 셀 추적
+            visited_in_row = set()
+
+            self._log(f"\n[너비 계산] 행 {row_idx} 시작: list_id={start_cell}")
+
+            # 시작 셀 너비/높이 수집
+            width, height = self._get_cell_size(start_cell)
+            cumulative_x = width
+            visited_in_row.add(start_cell)
+
+            # 행 높이는 첫 번째 셀 기준
+            row_result.row_height = height
+
+            cell_info = CellWidthInfo(
+                list_id=start_cell,
+                width=width,
+                height=height,
+                start_x=0,
+                end_x=cumulative_x,
+                col_index=0
+            )
+            row_result.cells.append(cell_info)
+
+            self._log(f"  col=0: list_id={start_cell}, width={width}, height={height}, x=[0~{cumulative_x}]")
+
+            current_id = start_cell
+            col_index = 0
+
+            max_steps = 1000
+            step = 0
+
+            while step < max_steps:
+                step += 1
+
+                # last_col에 도달했으면 종료
+                if current_id in last_cols_set:
+                    row_result.end_cell = current_id
+                    self._log(f"  행 {row_idx} 종료: last_col 도달 (list_id={current_id})")
+                    break
+
+                # 오른쪽으로 이동
+                self.hwp.SetPos(current_id, 0, 0)
+                self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
+                next_id, _, _ = self.hwp.GetPos()
+
+                # 같은 셀에 머무르면 종료
+                if next_id == current_id:
+                    row_result.end_cell = current_id
+                    self._log(f"  행 {row_idx} 종료: 이동 불가 (list_id={current_id})")
+                    break
+
+                # 다른 행의 first_col을 만나면 종료 (시작 셀 제외)
+                if next_id in first_cols_set and next_id != start_cell:
+                    row_result.end_cell = current_id
+                    self._log(f"  행 {row_idx} 종료: 다른 행 first_col 도달 (list_id={next_id})")
+                    break
+
+                # 이미 방문한 셀이면 종료 (순환 감지)
+                if next_id in visited_in_row:
+                    row_result.end_cell = current_id
+                    self._log(f"  행 {row_idx} 종료: 순환 감지 (list_id={next_id})")
+                    break
+
+                # 새 셀 너비 수집
+                visited_in_row.add(next_id)
+                col_index += 1
+                start_x = cumulative_x
+                width, height = self._get_cell_size(next_id)
+                cumulative_x += width
+
+                cell_info = CellWidthInfo(
+                    list_id=next_id,
+                    width=width,
+                    height=height,
+                    start_x=start_x,
+                    end_x=cumulative_x,
+                    col_index=col_index
+                )
+                row_result.cells.append(cell_info)
+
+                self._log(f"  col={col_index}: list_id={next_id}, width={width}, x=[{start_x}~{cumulative_x}]")
+
+                current_id = next_id
+
+            row_result.total_width = cumulative_x
+            row_result.end_y = cumulative_y + row_result.row_height
+            cumulative_y = row_result.end_y  # 다음 행의 시작 y
+            result.rows.append(row_result)
+
+            if cumulative_x > result.max_width:
+                result.max_width = cumulative_x
+
+        return result
+
+    def print_row_widths(self, width_result: TableWidthResult = None):
+        """행별 셀 너비 결과 출력"""
+        if width_result is None:
+            width_result = self.calculate_row_widths()
+
+        print("\n=== 행별 셀 너비 결과 ===")
+        print(f"최대 너비: {width_result.max_width} HWPUNIT")
+
+        for row in width_result.rows:
+            print(f"\n[행 {row.row_index}] 시작={row.start_cell} → 끝={row.end_cell}, 전체 너비={row.total_width}")
+            for cell in row.cells:
+                print(f"  col={cell.col_index}: list_id={cell.list_id}, "
+                      f"width={cell.width}, cumulative={cell.cumulative_width}")
+
     def save_adjacency_to_json(self, adjacency_result: CellAdjacencyResult = None,
                                 filepath: str = None) -> str:
         """
@@ -1362,6 +1578,10 @@ if __name__ == "__main__":
     # 셀 인접 관계 (노드 그래프)
     adjacency_result = boundary.build_cell_adjacency(coord_result)
     boundary.print_cell_adjacency(adjacency_result)
+
+    # 행별 셀 너비 계산
+    width_result = boundary.calculate_row_widths(result)
+    boundary.print_row_widths(width_result)
 
     # JSON 파일로 저장
     boundary.save_adjacency_to_json(adjacency_result)
