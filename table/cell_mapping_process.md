@@ -77,7 +77,21 @@ HWP 테이블
     │
     ▼
 ┌─────────────────────────────────┐
-│  5. 엑셀 변환                    │  (TableExcelConverter)
+│  5. 빈 위치 보완                 │  (_fix_empty_positions)
+│     - 그리드 누락 좌표 탐지      │
+│     - 인접 셀 커서 이동으로 보완 │
+└─────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────┐
+│  6. 중복 위치 해결               │  (_fix_overlaps)
+│     - 좌표 중복 탐지             │
+│     - 커서 이동 기반 범위 조정   │
+└─────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────┐
+│  7. 엑셀 변환                    │  (TableExcelConverter)
 │     - 셀 병합 적용              │
 │     - 텍스트 추출               │
 └─────────────────────────────────┘
@@ -155,6 +169,23 @@ for each cell:
 
     colspan = end_col - start_col + 1
     rowspan = end_row - start_row + 1
+
+4단계: 빈 위치 보완 (_fix_empty_positions)
+───────────────────────────────────────────────────
+그리드에 누락된 좌표가 있으면 인접 셀 커서 이동으로 보완:
+
+for each empty (row, col):
+    - 인접 셀 찾기 (왼쪽/오른쪽/위/아래)
+    - 인접 셀에서 반대 방향으로 커서 이동
+    - 이동한 셀의 범위를 빈 위치까지 확장
+
+5단계: 중복 위치 해결 (_fix_overlaps)
+───────────────────────────────────────────────────
+같은 좌표를 여러 셀이 점유하면 커서 이동으로 해결:
+
+for each overlap (row, col) with [id1, id2]:
+    - id1 → 아래 이동 → id2 이면 id1이 위에 있음
+    - id1의 end_row를 id2.start_row - 1로 조정
 ```
 
 ### 2.4 행 내 셀 순회 (BFS)
@@ -238,9 +269,91 @@ class CellPositionResult:
 
 ---
 
-## 4. list_id -> 그리드 좌표 매핑 과정
+## 4. 그리드 매핑 보정 (빈 위치/중복 해결)
 
-### 4.1 좌표 인덱스 찾기
+### 4.1 보정이 필요한 이유
+
+xline/yline 기반 매핑은 물리 좌표에 의존하므로, 복잡한 병합 셀에서 다음 문제가 발생할 수 있습니다:
+
+| 문제 | 원인 | 예시 |
+|------|------|------|
+| **빈 위치** | 병합 셀의 물리 좌표가 일부 그리드 영역을 커버하지 못함 | 3행 병합 셀인데 2행만 매핑됨 |
+| **중복 위치** | 두 셀의 물리 좌표가 같은 그리드 영역을 점유 | (5,0)에 셀 A, B 모두 매핑됨 |
+
+### 4.2 빈 위치 보완 (`_fix_empty_positions`)
+
+**알고리즘:**
+
+```
+1. 그리드 점유 맵 생성: (row, col) → list_id
+2. 빈 위치 탐색: 점유되지 않은 (row, col) 수집
+3. 각 빈 위치에서:
+   ├── 인접 셀 찾기 (왼쪽/오른쪽/위/아래)
+   ├── 인접 셀에서 반대 방향으로 커서 이동
+   │   예: 왼쪽 인접 셀 → 오른쪽으로 이동 (MOVE_RIGHT_OF_CELL)
+   └── 이동한 셀이 존재하면 해당 셀의 범위를 빈 위치까지 확장
+```
+
+**예시:**
+
+```
+초기 매핑 결과:
+     col 0   col 1   col 2
+row 0:  [2]     [3]     [4]
+row 1:  [5]     [6]     [6]
+row 2:  [5]      .      [7]    ← (2,1)이 빈 위치
+
+보정 과정:
+1. (2,1)의 왼쪽 인접 셀 = [5]
+2. [5]에서 오른쪽으로 커서 이동 → [6] 발견
+3. [6]의 범위를 row 2까지 확장
+
+보정 후:
+     col 0   col 1   col 2
+row 0:  [2]     [3]     [4]
+row 1:  [5]     [6]     [6]
+row 2:  [5]     [6]     [7]    ← [6]이 row 1~2로 확장됨
+```
+
+### 4.3 중복 위치 해결 (`_fix_overlaps`)
+
+**알고리즘:**
+
+```
+1. 그리드 점유 맵 생성: (row, col) → [list_ids]
+2. 중복 위치 탐색: 2개 이상의 셀이 점유한 좌표 수집
+3. 각 중복 셀 쌍에서:
+   ├── 커서 이동으로 인접 관계 확인
+   │   id1 → 아래 이동 → id2 이면 id1이 위, id2가 아래
+   └── 위 셀의 end_row를 아래 셀의 start_row - 1로 조정
+```
+
+**예시:**
+
+```
+초기 매핑 결과:
+     col 0   col 1
+row 0:  [2]     [3]
+row 1:  [4]     [3]    ← (1,1)에 [3]과 [5] 중복
+row 2:  [4]     [5]
+
+중복 확인:
+- (1,1)에 셀 [3]과 [5]가 모두 매핑됨
+- [3] → 아래 이동 → [5] 도착 (인접 관계 확인)
+- [3]의 end_row를 [5].start_row - 1 = 1로 조정
+
+보정 후:
+     col 0   col 1
+row 0:  [2]     [3]
+row 1:  [4]     [5]    ← [3]은 row 0만, [5]는 row 1~2
+row 2:  [4]     [5]
+```
+
+---
+
+## 5. list_id -> 그리드 좌표 매핑 과정
+
+### 5.1 좌표 인덱스 찾기
 
 물리 좌표를 그리드 인덱스로 변환하는 두 가지 메서드:
 
@@ -269,7 +382,7 @@ def _find_end_level_index(self, value: int, levels: List[int]) -> int:
     return 0
 ```
 
-### 4.2 매핑 과정
+### 5.2 매핑 과정
 
 ```python
 # 각 셀에 대해 그리드 좌표 계산
@@ -295,7 +408,7 @@ for list_id, pos in cell_positions.items():
     )
 ```
 
-### 4.3 예시: 병합 셀 처리
+### 5.3 예시: 병합 셀 처리
 
 ```
 물리 좌표:
@@ -316,9 +429,9 @@ X 레벨: [0, 1000, 2000]
 
 ---
 
-## 5. 각 클래스와 주요 메서드 설명
+## 6. 각 클래스와 주요 메서드 설명
 
-### 5.1 TableInfo (table_info.py)
+### 6.1 TableInfo (table_info.py)
 
 테이블 기본 정보 수집 및 셀 순회를 담당합니다.
 
@@ -337,7 +450,7 @@ MOVE_UP_OF_CELL = 102
 MOVE_DOWN_OF_CELL = 103
 ```
 
-### 5.2 TableBoundary (table_boundary.py)
+### 6.2 TableBoundary (table_boundary.py)
 
 테이블 경계를 판별하고 다양한 좌표 매핑 방식을 제공합니다.
 
@@ -362,7 +475,7 @@ class TableBoundaryResult:
     last_cols: List[int]    # 각 행의 마지막 셀들
 ```
 
-### 5.3 CellPositionCalculator (cell_position.py)
+### 6.3 CellPositionCalculator (cell_position.py)
 
 xline/yline 기반으로 정확한 셀 위치를 계산합니다.
 
@@ -375,11 +488,13 @@ xline/yline 기반으로 정확한 셀 위치를 계산합니다.
 | `_merge_close_levels()` | 근접한 레벨 병합 |
 | `_find_level_index()` | 시작 좌표의 레벨 인덱스 찾기 |
 | `_find_end_level_index()` | 끝 좌표의 레벨 인덱스 찾기 |
+| `_fix_empty_positions()` | 빈 위치 보완 (인접 셀 커서 이동 기반) |
+| `_fix_overlaps()` | 중복 위치 해결 (커서 이동 기반 인접 관계 확인) |
 | `get_cell_at()` | 특정 좌표의 셀 반환 |
 | `build_coord_to_listid_map()` | (row, col) -> list_id 매핑 생성 |
 | `insert_all_coordinates()` | 모든 셀에 좌표 텍스트 삽입 (디버깅용) |
 
-### 5.4 TableExcelConverter (table_excel_converter.py)
+### 6.4 TableExcelConverter (table_excel_converter.py)
 
 HWP 테이블을 엑셀로 변환합니다.
 
@@ -393,9 +508,9 @@ HWP 테이블을 엑셀로 변환합니다.
 
 ---
 
-## 6. 데이터 흐름 다이어그램
+## 7. 데이터 흐름 다이어그램
 
-### 6.1 전체 데이터 흐름
+### 7.1 전체 데이터 흐름
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -489,7 +604,7 @@ HWP 테이블을 엑셀로 변환합니다.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 6.2 좌표 변환 상세 흐름
+### 7.2 좌표 변환 상세 흐름
 
 ```
 물리 좌표 (HWPUNIT)          레벨 인덱스             그리드 좌표
@@ -505,7 +620,7 @@ end_x = 3000    ──────────►  _find_end_level_index() ►  
 colspan = end_col - col + 1 = 2 - 1 + 1 = 2
 ```
 
-### 6.3 검증 흐름
+### 7.3 검증 흐름
 
 ```
 CellPositionResult
@@ -531,9 +646,9 @@ validate_cell_positions()
 
 ---
 
-## 7. 사용 예시
+## 8. 사용 예시
 
-### 7.1 셀 위치 계산
+### 8.1 셀 위치 계산
 
 ```python
 from table.cell_position import CellPositionCalculator
@@ -556,7 +671,7 @@ coord_map = calc.build_coord_to_listid_map(result)
 list_id = coord_map[(0, 0)]  # (0,0) 좌표의 셀 ID
 ```
 
-### 7.2 엑셀 변환
+### 8.2 엑셀 변환
 
 ```python
 from table.table_excel_converter import TableExcelConverter
@@ -570,7 +685,7 @@ if validation['valid']:
     converter.to_excel("output.xlsx", with_text=True)
 ```
 
-### 7.3 경계 분석
+### 8.3 경계 분석
 
 ```python
 from table.table_boundary import TableBoundary
@@ -587,17 +702,18 @@ print(f"총 셀 수: {result.table_cell_counts}")
 
 ---
 
-## 8. 주의사항
+## 9. 주의사항
 
-### 8.1 TOLERANCE 값
+### 9.1 TOLERANCE 값
 
 `CellPositionCalculator.TOLERANCE = 3`은 레벨 병합 시 허용 오차입니다. HWP 문서에 따라 이 값을 조정해야 할 수 있습니다.
 
-### 8.2 분할 셀 처리
+### 9.2 분할 셀 처리
 
 행 내에서 세로로 분할된 셀(서브셀)은 `collect_split_cells()` 재귀 함수로 처리됩니다. 복잡한 테이블의 경우 이 로직이 중요합니다.
 
-### 8.3 성능 고려사항
+### 9.3 성능 고려사항
 
 - `max_cells` 파라미터로 처리할 최대 셀 수를 제한할 수 있습니다
 - 대형 테이블의 경우 `debug=False`로 설정하여 로그 출력을 줄이세요
+
