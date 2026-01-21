@@ -31,6 +31,11 @@ class CellData:
     text: str
     rowspan: int = 1
     colspan: int = 1
+    # 물리 좌표 (디버깅용)
+    start_x: int = 0
+    start_y: int = 0
+    end_x: int = 0
+    end_y: int = 0
 
 
 class TableExcelConverter:
@@ -170,6 +175,10 @@ class TableExcelConverter:
                 text=text,
                 rowspan=cell.rowspan,
                 colspan=cell.colspan,
+                start_x=cell.start_x,
+                start_y=cell.start_y,
+                end_x=cell.end_x,
+                end_y=cell.end_y,
             ))
             count += 1
 
@@ -208,6 +217,10 @@ class TableExcelConverter:
                     text="",
                     rowspan=cell.rowspan,
                     colspan=cell.colspan,
+                    start_x=cell.start_x,
+                    start_y=cell.start_y,
+                    end_x=cell.end_x,
+                    end_y=cell.end_y,
                 )
                 for cell in result.cells.values()
             ]
@@ -371,7 +384,8 @@ class TableExcelConverter:
         ws_meta = wb.create_sheet(title="_meta")
 
         # 헤더
-        headers = ["list_id", "row", "col", "end_row", "end_col", "rowspan", "colspan", "is_merged", "status"]
+        headers = ["list_id", "row", "col", "end_row", "end_col", "rowspan", "colspan",
+                   "start_x", "start_y", "end_x", "end_y", "is_merged", "status"]
         for col_idx, header in enumerate(headers, 1):
             ws_meta.cell(row=1, column=col_idx, value=header)
             ws_meta.cell(row=1, column=col_idx).font = Font(bold=True)
@@ -394,11 +408,16 @@ class TableExcelConverter:
             ws_meta.cell(row=row_idx, column=5, value=cell_data.end_col)
             ws_meta.cell(row=row_idx, column=6, value=cell_data.rowspan)
             ws_meta.cell(row=row_idx, column=7, value=cell_data.colspan)
-            ws_meta.cell(row=row_idx, column=8, value="Y" if cell_data.rowspan > 1 or cell_data.colspan > 1 else "N")
-            ws_meta.cell(row=row_idx, column=9, value=status)
+            ws_meta.cell(row=row_idx, column=8, value=cell_data.start_x)
+            ws_meta.cell(row=row_idx, column=9, value=cell_data.start_y)
+            ws_meta.cell(row=row_idx, column=10, value=cell_data.end_x)
+            ws_meta.cell(row=row_idx, column=11, value=cell_data.end_y)
+            ws_meta.cell(row=row_idx, column=12, value="Y" if cell_data.rowspan > 1 or cell_data.colspan > 1 else "N")
+            ws_meta.cell(row=row_idx, column=13, value=status)
 
         # _meta 열 너비 조정
-        for col_idx, width in enumerate([10, 6, 6, 8, 8, 8, 8, 10, 10], 1):
+        col_widths = [8, 5, 5, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9]
+        for col_idx, width in enumerate(col_widths, 1):
             ws_meta.column_dimensions[get_column_letter(col_idx)].width = width
 
         wb.save(filepath)

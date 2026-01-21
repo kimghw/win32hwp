@@ -88,15 +88,22 @@ class CellPositionCalculator:
         return -1
 
     def _find_end_level_index(self, value: int, levels: List[int]) -> int:
-        """끝 좌표에 해당하는 레벨 인덱스 반환"""
+        """끝 좌표에 해당하는 레벨 인덱스 반환
+
+        셀의 끝 좌표가 다음 셀의 시작 좌표와 같은 경우가 많으므로,
+        끝 좌표가 레벨과 일치하면 이전 레벨 인덱스를 반환
+        """
+        # 정확히 일치하는 레벨 찾기 (끝 좌표는 경계에 있음)
         for idx, level in enumerate(levels):
             if abs(value - level) <= self.TOLERANCE:
-                return idx - 1 if idx > 0 else 0
-        # value보다 작은 가장 큰 레벨
+                # 끝 좌표가 레벨 경계와 일치하면, 이전 레벨에 속함
+                return max(0, idx - 1)
+
+        # 일치하는 레벨이 없으면, value보다 작은 가장 큰 레벨 찾기
         for idx in range(len(levels) - 1, -1, -1):
-            if levels[idx] < value:
+            if levels[idx] < value - self.TOLERANCE:
                 return idx
-        return len(levels) - 1
+        return 0
 
     def calculate(self, max_cells: int = 1000) -> CellPositionResult:
         """테이블의 모든 셀 위치 및 범위 계산"""
