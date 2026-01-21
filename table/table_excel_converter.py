@@ -66,6 +66,88 @@ class TableExcelConverter:
                 print(f"[경고] list_id={list_id} 텍스트 추출 실패: {e}")
             return ""
 
+    def validate_cell_positions(self, result: CellPositionResult = None) -> dict:
+        """셀 위치 계산 결과 검증
+
+        Returns:
+            dict: {
+                'valid': bool,
+                'overlaps': [(cell1, cell2, overlap_coords), ...],
+                'gaps': [(row, col), ...],  # 비어있는 좌표
+                'total_cells': int,
+                'coverage': float,  # 커버리지 비율
+            }
+        """
+        if result is None:
+            result = self._calc.calculate()
+
+        overlaps = []
+        coord_to_cell = {}  # (row, col) -> CellData
+
+        # 모든 셀의 좌표 매핑 및 중복 검사
+        for list_id, cell in result.cells.items():
+            for r in range(cell.start_row, cell.end_row + 1):
+                for c in range(cell.start_col, cell.end_col + 1):
+                    coord = (r, c)
+                    if coord in coord_to_cell:
+                        existing = coord_to_cell[coord]
+                        overlaps.append({
+                            'coord': coord,
+                            'cell1': {'list_id': existing.list_id, 'range': f"({existing.start_row},{existing.start_col})~({existing.end_row},{existing.end_col})"},
+                            'cell2': {'list_id': list_id, 'range': f"({cell.start_row},{cell.start_col})~({cell.end_row},{cell.end_col})"},
+                        })
+                    else:
+                        coord_to_cell[coord] = cell
+
+        # 빈 좌표 확인
+        gaps = []
+        for r in range(result.max_row + 1):
+            for c in range(result.max_col + 1):
+                if (r, c) not in coord_to_cell:
+                    gaps.append((r, c))
+
+        total_coords = (result.max_row + 1) * (result.max_col + 1)
+        covered_coords = len(coord_to_cell)
+        coverage = covered_coords / total_coords if total_coords > 0 else 0
+
+        validation = {
+            'valid': len(overlaps) == 0 and len(gaps) == 0,
+            'overlaps': overlaps,
+            'gaps': gaps,
+            'total_cells': len(result.cells),
+            'total_coords': total_coords,
+            'covered_coords': covered_coords,
+            'coverage': coverage,
+        }
+
+        # 검증 결과 출력
+        print(f"\n=== 셀 위치 검증 결과 ===")
+        print(f"총 셀 수: {len(result.cells)}개")
+        print(f"테이블 크기: {result.max_row + 1}행 x {result.max_col + 1}열 = {total_coords}좌표")
+        print(f"커버리지: {covered_coords}/{total_coords} ({coverage*100:.1f}%)")
+
+        if overlaps:
+            print(f"\n[오류] 중복 좌표: {len(overlaps)}개")
+            for ov in overlaps[:5]:
+                print(f"  ({ov['coord'][0]},{ov['coord'][1]}): {ov['cell1']['range']} vs {ov['cell2']['range']}")
+            if len(overlaps) > 5:
+                print(f"  ... 외 {len(overlaps) - 5}개")
+
+        if gaps:
+            print(f"\n[경고] 빈 좌표: {len(gaps)}개")
+            # 연속된 빈 영역 그룹화
+            if len(gaps) <= 20:
+                print(f"  {gaps}")
+            else:
+                print(f"  {gaps[:10]} ... 외 {len(gaps) - 10}개")
+
+        if validation['valid']:
+            print("\n검증 결과: 정상 [OK]")
+        else:
+            print("\n검증 결과: 문제 발견 [FAIL]")
+
+        return validation
+
     def extract_table_data(self, max_cells: int = 1000) -> List[CellData]:
         """현재 테이블의 모든 셀 데이터 추출"""
         result = self._calc.calculate()
@@ -95,13 +177,14 @@ class TableExcelConverter:
 
         return cells_data
 
-    def to_excel(self, filepath: str, sheet_name: str = "Sheet1", with_text: bool = True):
+    def to_excel(self, filepath: str, sheet_name: str = "Sheet1", with_text: bool = True, show_cell_info: bool = False):
         """HWP 테이블을 엑셀 파일로 저장
 
         Args:
             filepath: 저장할 엑셀 파일 경로
             sheet_name: 시트 이름
             with_text: True면 셀 텍스트 포함, False면 셀 범위만 저장
+            show_cell_info: True면 셀 속성 정보(list_id, 좌표, 병합정보) 표시
         """
         if not HAS_OPENPYXL:
             raise ImportError("openpyxl이 설치되어 있지 않습니다. pip install openpyxl")
@@ -141,21 +224,65 @@ class TableExcelConverter:
             bottom=Side(style='thin')
         )
 
-        # 먼저 모든 병합 처리
-        for cell_data in cells_data:
+        # 병합 영역 검증 및 적용
+        merged_coords = set()  # 이미 병합된 좌표 추적
+        merge_conflicts = []   # 충돌 목록
+        merge_success = []     # 성공 목록
+
+        # 셀을 (row, col) 순서로 정렬하여 병합
+        sorted_cells = sorted(cells_data, key=lambda c: (c.row, c.col))
+
+        for cell_data in sorted_cells:
             if cell_data.rowspan > 1 or cell_data.colspan > 1:
                 excel_row = cell_data.row + 1
                 excel_col = cell_data.col + 1
                 end_row = cell_data.end_row + 1
                 end_col = cell_data.end_col + 1
-                ws.merge_cells(
-                    start_row=excel_row,
-                    start_column=excel_col,
-                    end_row=end_row,
-                    end_column=end_col
-                )
+
+                # 병합 영역이 이미 사용 중인지 확인
+                conflict_coords = []
+                for r in range(cell_data.row, cell_data.end_row + 1):
+                    for c in range(cell_data.col, cell_data.end_col + 1):
+                        if (r, c) in merged_coords:
+                            conflict_coords.append((r, c))
+
+                if conflict_coords:
+                    merge_conflicts.append({
+                        'cell': cell_data,
+                        'conflicts': conflict_coords,
+                    })
+                    if self.debug:
+                        print(f"[충돌] list_id={cell_data.list_id} ({cell_data.row},{cell_data.col})~({cell_data.end_row},{cell_data.end_col}): "
+                              f"이미 병합된 좌표 {conflict_coords[:3]}{'...' if len(conflict_coords) > 3 else ''}")
+                else:
+                    # 병합 적용
+                    ws.merge_cells(
+                        start_row=excel_row,
+                        start_column=excel_col,
+                        end_row=end_row,
+                        end_column=end_col
+                    )
+                    # 병합된 좌표 기록
+                    for r in range(cell_data.row, cell_data.end_row + 1):
+                        for c in range(cell_data.col, cell_data.end_col + 1):
+                            merged_coords.add((r, c))
+                    merge_success.append(cell_data)
+
+        # 병합 검증 결과 출력
+        if merge_conflicts:
+            print(f"\n=== 병합 충돌 감지: {len(merge_conflicts)}개 ===")
+            for conflict in merge_conflicts[:10]:  # 최대 10개만 출력
+                cell = conflict['cell']
+                print(f"  list_id={cell.list_id}: ({cell.row},{cell.col})~({cell.end_row},{cell.end_col}) "
+                      f"- 충돌 좌표: {conflict['conflicts'][:5]}")
+            if len(merge_conflicts) > 10:
+                print(f"  ... 외 {len(merge_conflicts) - 10}개")
+
+        if self.debug:
+            print(f"\n병합 성공: {len(merge_success)}개, 충돌: {len(merge_conflicts)}개")
 
         # 셀 데이터 쓰기 (병합 후 좌상단 셀에만 값 입력)
+        skipped_cells = []
         for cell_data in cells_data:
             excel_row = cell_data.row + 1
             excel_col = cell_data.col + 1
@@ -164,9 +291,22 @@ class TableExcelConverter:
 
             # MergedCell인 경우 건너뛰기 (이미 다른 셀에 병합됨)
             if isinstance(cell, MergedCell):
+                skipped_cells.append(cell_data)
                 continue
 
-            cell.value = cell_data.text
+            # 셀 내용 결정
+            if show_cell_info:
+                # 셀 속성 정보 표시
+                info_lines = [f"id={cell_data.list_id}"]
+                if cell_data.rowspan > 1 or cell_data.colspan > 1:
+                    info_lines.append(f"({cell_data.row},{cell_data.col})~({cell_data.end_row},{cell_data.end_col})")
+                    info_lines.append(f"span={cell_data.rowspan}x{cell_data.colspan}")
+                else:
+                    info_lines.append(f"({cell_data.row},{cell_data.col})")
+                cell.value = "\n".join(info_lines)
+            else:
+                cell.value = cell_data.text
+
             cell.border = thin_border
             cell.alignment = Alignment(wrap_text=True, vertical='center')
 
@@ -181,6 +321,14 @@ class TableExcelConverter:
                         except AttributeError:
                             pass  # MergedCell은 건너뜀
 
+        # 스킵된 셀 출력
+        if skipped_cells:
+            print(f"\n=== 스킵된 셀 (충돌): {len(skipped_cells)}개 ===")
+            for cell in skipped_cells[:10]:
+                print(f"  list_id={cell.list_id}: ({cell.row},{cell.col})~({cell.end_row},{cell.end_col})")
+            if len(skipped_cells) > 10:
+                print(f"  ... 외 {len(skipped_cells) - 10}개")
+
         # 열 너비 자동 조정
         for col_idx in range(1, result.max_col + 2):
             max_length = 0
@@ -193,8 +341,44 @@ class TableExcelConverter:
                     max_length = max(max_length, cell_length)
             ws.column_dimensions[column_letter].width = min(max_length + 2, 50)
 
+        # _meta 시트 생성 (셀 속성 정보)
+        ws_meta = wb.create_sheet(title="_meta")
+
+        # 헤더
+        headers = ["list_id", "row", "col", "end_row", "end_col", "rowspan", "colspan", "is_merged", "status"]
+        for col_idx, header in enumerate(headers, 1):
+            ws_meta.cell(row=1, column=col_idx, value=header)
+            ws_meta.cell(row=1, column=col_idx).font = Font(bold=True)
+
+        # 셀 데이터 작성
+        sorted_cells = sorted(cells_data, key=lambda c: (c.row, c.col))
+        for row_idx, cell_data in enumerate(sorted_cells, 2):
+            # 상태 결정
+            if cell_data in skipped_cells:
+                status = "SKIPPED"
+            elif any(c['cell'] == cell_data for c in merge_conflicts):
+                status = "CONFLICT"
+            else:
+                status = "OK"
+
+            ws_meta.cell(row=row_idx, column=1, value=cell_data.list_id)
+            ws_meta.cell(row=row_idx, column=2, value=cell_data.row)
+            ws_meta.cell(row=row_idx, column=3, value=cell_data.col)
+            ws_meta.cell(row=row_idx, column=4, value=cell_data.end_row)
+            ws_meta.cell(row=row_idx, column=5, value=cell_data.end_col)
+            ws_meta.cell(row=row_idx, column=6, value=cell_data.rowspan)
+            ws_meta.cell(row=row_idx, column=7, value=cell_data.colspan)
+            ws_meta.cell(row=row_idx, column=8, value="Y" if cell_data.rowspan > 1 or cell_data.colspan > 1 else "N")
+            ws_meta.cell(row=row_idx, column=9, value=status)
+
+        # _meta 열 너비 조정
+        for col_idx, width in enumerate([10, 6, 6, 8, 8, 8, 8, 10, 10], 1):
+            ws_meta.column_dimensions[get_column_letter(col_idx)].width = width
+
         wb.save(filepath)
-        print(f"엑셀 파일 저장: {filepath}")
+        print(f"\n엑셀 파일 저장: {filepath}")
+        print(f"  - 메인 시트: {sheet_name}")
+        print(f"  - 메타 시트: _meta ({len(cells_data)}개 셀 정보)")
         return filepath
 
     def to_dict(self) -> Dict[tuple, str]:
@@ -248,16 +432,21 @@ if __name__ == "__main__":
         print("[오류] 한글이 실행 중이지 않습니다.")
         exit(1)
 
-    converter = TableExcelConverter(hwp)
+    converter = TableExcelConverter(hwp, debug=True)
 
     try:
-        # 셀 위치만 계산 (텍스트 추출 없음)
+        # 1. 셀 위치 계산
         result = converter._calc.calculate()
         converter._calc.print_summary(result)
 
-        # 엑셀로 저장 (텍스트 없이 셀 범위만)
+        # 2. 셀 위치 검증
+        validation = converter.validate_cell_positions(result)
+
+        # 3. 엑셀로 저장 (셀 속성 정보 포함)
         if HAS_OPENPYXL:
-            converter.to_excel("C:\\win32hwp\\output_table.xlsx", with_text=False)
+            import datetime
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            converter.to_excel(f"C:\\win32hwp\\output_table_{timestamp}.xlsx", with_text=False, show_cell_info=True)
         else:
             print("[경고] openpyxl이 없어서 엑셀 저장을 건너뜁니다.")
             print("설치: pip install openpyxl")
