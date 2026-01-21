@@ -266,6 +266,14 @@ class CellPositionCalculator:
         max_row = max(c.end_row for c in cells.values()) if cells else 0
         max_col = max(c.end_col for c in cells.values()) if cells else 0
 
+        # 4단계: 빈 위치 보완 (인접 셀 커서 이동 기반)
+        cells, max_row, max_col = self._fix_empty_positions(
+            cells, x_levels_list, y_levels_list, max_row, max_col
+        )
+
+        # 5단계: 중복 위치 해결 (커서 이동 기반 인접 관계 확인)
+        cells = self._fix_overlaps(cells, max_row, max_col)
+
         if self.debug:
             print(f"[calculate_grid] 결과: {len(cells)}개 셀, {max_row+1}행 x {max_col+1}열")
 
@@ -276,6 +284,250 @@ class CellPositionCalculator:
             max_row=max_row,
             max_col=max_col,
         )
+
+    def _fix_empty_positions(
+        self,
+        cells: Dict[int, CellRange],
+        x_levels: List[int],
+        y_levels: List[int],
+        max_row: int,
+        max_col: int
+    ) -> tuple:
+        """
+        빈 위치를 인접 셀 커서 이동으로 보완
+
+        알고리즘:
+        1. 그리드 점유 맵 생성
+        2. 빈 위치 찾기
+        3. 빈 위치에서 인접 셀 기반 커서 이동으로 실제 셀 찾기
+        4. 찾은 셀의 start_row를 빈 위치로 확장
+        """
+        from table.table_info import MOVE_RIGHT_OF_CELL, MOVE_LEFT_OF_CELL, MOVE_UP_OF_CELL, MOVE_DOWN_OF_CELL
+
+        # 그리드 점유 맵 생성
+        grid = {}  # (row, col) -> list_id
+        for list_id, cell in cells.items():
+            for r in range(cell.start_row, cell.end_row + 1):
+                for c in range(cell.start_col, cell.end_col + 1):
+                    grid[(r, c)] = list_id
+
+        # 빈 위치 찾기
+        empty_positions = []
+        for r in range(max_row + 1):
+            for c in range(max_col + 1):
+                if (r, c) not in grid:
+                    empty_positions.append((r, c))
+
+        if not empty_positions:
+            return cells, max_row, max_col
+
+        if self.debug:
+            print(f"[_fix_empty_positions] 빈 위치 {len(empty_positions)}개: {empty_positions}")
+
+        # 빈 위치별로 실제 셀 찾기
+        fixed_cells = {}  # list_id -> 확장할 row 범위
+
+        for empty_row, empty_col in empty_positions:
+            # 인접 셀 찾기
+            adjacent_cells = []
+
+            # 왼쪽 인접 셀
+            for c in range(empty_col - 1, -1, -1):
+                if (empty_row, c) in grid:
+                    adjacent_cells.append(('left', grid[(empty_row, c)]))
+                    break
+
+            # 오른쪽 인접 셀
+            for c in range(empty_col + 1, max_col + 1):
+                if (empty_row, c) in grid:
+                    adjacent_cells.append(('right', grid[(empty_row, c)]))
+                    break
+
+            # 위쪽 인접 셀
+            for r in range(empty_row - 1, -1, -1):
+                if (r, empty_col) in grid:
+                    adjacent_cells.append(('up', grid[(r, empty_col)]))
+                    break
+
+            # 아래쪽 인접 셀
+            for r in range(empty_row + 1, max_row + 1):
+                if (r, empty_col) in grid:
+                    adjacent_cells.append(('down', grid[(r, empty_col)]))
+                    break
+
+            if not adjacent_cells:
+                continue
+
+            # 인접 셀에서 커서 이동으로 빈 위치의 실제 셀 찾기
+            found_cell_id = None
+            move_map = {
+                'left': MOVE_RIGHT_OF_CELL,
+                'right': MOVE_LEFT_OF_CELL,
+                'up': MOVE_DOWN_OF_CELL,
+                'down': MOVE_UP_OF_CELL,
+            }
+
+            for direction, adj_id in adjacent_cells:
+                self.hwp.SetPos(adj_id, 0, 0)
+                self.hwp.MovePos(move_map[direction], 0, 0)
+                target_id = self.hwp.GetPos()[0]
+
+                if target_id != adj_id and target_id in cells:
+                    found_cell_id = target_id
+                    break
+
+            if found_cell_id:
+                # 찾은 셀의 row 범위 확장
+                if found_cell_id not in fixed_cells:
+                    fixed_cells[found_cell_id] = {
+                        'min_row': empty_row,
+                        'max_row': empty_row,
+                        'cols': {empty_col}
+                    }
+                else:
+                    fixed_cells[found_cell_id]['min_row'] = min(
+                        fixed_cells[found_cell_id]['min_row'], empty_row
+                    )
+                    fixed_cells[found_cell_id]['max_row'] = max(
+                        fixed_cells[found_cell_id]['max_row'], empty_row
+                    )
+                    fixed_cells[found_cell_id]['cols'].add(empty_col)
+
+        # 셀 범위 확장 적용
+        for list_id, fix_info in fixed_cells.items():
+            cell = cells[list_id]
+            new_start_row = min(cell.start_row, fix_info['min_row'])
+            new_end_row = max(cell.end_row, fix_info['max_row'])
+
+            if new_start_row != cell.start_row or new_end_row != cell.end_row:
+                if self.debug:
+                    print(f"[_fix_empty_positions] 셀 {list_id} 확장: "
+                          f"row {cell.start_row}~{cell.end_row} → {new_start_row}~{new_end_row}")
+
+                cells[list_id] = CellRange(
+                    list_id=list_id,
+                    start_row=new_start_row,
+                    start_col=cell.start_col,
+                    end_row=new_end_row,
+                    end_col=cell.end_col,
+                    rowspan=new_end_row - new_start_row + 1,
+                    colspan=cell.colspan,
+                    start_x=cell.start_x,
+                    start_y=cell.start_y,
+                    end_x=cell.end_x,
+                    end_y=cell.end_y,
+                )
+
+        # max_row/max_col 재계산
+        if cells:
+            max_row = max(c.end_row for c in cells.values())
+            max_col = max(c.end_col for c in cells.values())
+
+        return cells, max_row, max_col
+
+    def _fix_overlaps(
+        self,
+        cells: Dict[int, CellRange],
+        max_row: int,
+        max_col: int
+    ) -> Dict[int, CellRange]:
+        """
+        중복 위치 해결 (커서 이동 기반 인접 관계 확인)
+
+        알고리즘:
+        1. 중복 위치 찾기
+        2. 중복된 셀 쌍에 대해 커서 이동으로 인접 관계 확인
+        3. 위아래 인접이면, 위 셀의 end_row를 아래 셀의 start_row - 1로 조정
+        """
+        from table.table_info import MOVE_DOWN_OF_CELL, MOVE_UP_OF_CELL
+
+        # 그리드에서 중복 찾기
+        grid = {}  # (row, col) -> [list_ids]
+        for list_id, cell in cells.items():
+            for r in range(cell.start_row, cell.end_row + 1):
+                for c in range(cell.start_col, cell.end_col + 1):
+                    key = (r, c)
+                    if key not in grid:
+                        grid[key] = []
+                    grid[key].append(list_id)
+
+        # 중복 위치 찾기
+        overlaps = {k: v for k, v in grid.items() if len(v) > 1}
+
+        if not overlaps:
+            return cells
+
+        if self.debug:
+            print(f"[_fix_overlaps] 중복 위치 {len(overlaps)}개 발견")
+
+        # 중복 셀 쌍 수집
+        overlap_pairs = set()
+        for pos, ids in overlaps.items():
+            if len(ids) == 2:
+                overlap_pairs.add(tuple(sorted(ids)))
+
+        # 각 쌍에 대해 인접 관계 확인 및 조정
+        for id1, id2 in overlap_pairs:
+            cell1 = cells[id1]
+            cell2 = cells[id2]
+
+            # 커서 이동으로 인접 관계 확인
+            # id1 → 아래 → id2 이면 id1이 위에 있음
+            self.hwp.SetPos(id1, 0, 0)
+            self.hwp.MovePos(MOVE_DOWN_OF_CELL, 0, 0)
+            down_of_1 = self.hwp.GetPos()[0]
+
+            self.hwp.SetPos(id2, 0, 0)
+            self.hwp.MovePos(MOVE_UP_OF_CELL, 0, 0)
+            up_of_2 = self.hwp.GetPos()[0]
+
+            if down_of_1 == id2 and up_of_2 == id1:
+                # id1이 위, id2가 아래로 인접
+                # id1의 end_row를 id2의 start_row - 1로 조정
+                new_end_row = cell2.start_row - 1
+
+                if new_end_row >= cell1.start_row:
+                    if self.debug:
+                        print(f"[_fix_overlaps] 셀 {id1} end_row 조정: "
+                              f"{cell1.end_row} → {new_end_row}")
+
+                    cells[id1] = CellRange(
+                        list_id=id1,
+                        start_row=cell1.start_row,
+                        start_col=cell1.start_col,
+                        end_row=new_end_row,
+                        end_col=cell1.end_col,
+                        rowspan=new_end_row - cell1.start_row + 1,
+                        colspan=cell1.colspan,
+                        start_x=cell1.start_x,
+                        start_y=cell1.start_y,
+                        end_x=cell1.end_x,
+                        end_y=cell1.end_y,
+                    )
+            elif down_of_1 == id1 and up_of_2 == id2:
+                # 반대로 id2가 위, id1이 아래
+                new_end_row = cell1.start_row - 1
+
+                if new_end_row >= cell2.start_row:
+                    if self.debug:
+                        print(f"[_fix_overlaps] 셀 {id2} end_row 조정: "
+                              f"{cell2.end_row} → {new_end_row}")
+
+                    cells[id2] = CellRange(
+                        list_id=id2,
+                        start_row=cell2.start_row,
+                        start_col=cell2.start_col,
+                        end_row=new_end_row,
+                        end_col=cell2.end_col,
+                        rowspan=new_end_row - cell2.start_row + 1,
+                        colspan=cell2.colspan,
+                        start_x=cell2.start_x,
+                        start_y=cell2.start_y,
+                        end_x=cell2.end_x,
+                        end_y=cell2.end_y,
+                    )
+
+        return cells
 
     def _calculate_bfs(self, max_cells: int = 1000) -> CellPositionResult:
         """
