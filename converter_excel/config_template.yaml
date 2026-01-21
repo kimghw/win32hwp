@@ -1,0 +1,139 @@
+# =============================================================================
+# HWP → Excel 변환 설정
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. 페이지 설정 (page)
+# -----------------------------------------------------------------------------
+page:
+  enabled: true                    # 페이지 설정 적용 여부
+
+  margins:                         # 여백 적용
+    enabled: true
+    # 개별 제어 (false면 기본값 사용)
+    left: true
+    right: true
+    top: true
+    bottom: true
+
+  orientation: true                # 용지 방향 (portrait/landscape)
+
+  fit_to_page:                     # 페이지 맞춤
+    enabled: true
+    width: 1                       # 가로 페이지 수 (0=자동)
+    height: 0                      # 세로 페이지 수 (0=자동)
+
+# -----------------------------------------------------------------------------
+# 2. 셀 스타일 (style)
+# -----------------------------------------------------------------------------
+style:
+  enabled: true                    # 스타일 적용 여부
+
+  # 배경색
+  background:
+    enabled: true
+
+  # 테두리
+  border:
+    enabled: true
+    style: thin                    # thin, medium, thick, none
+
+  # 글꼴
+  font:
+    enabled: true
+    name: true                     # 글꼴 이름
+    size: true                     # 글꼴 크기
+    bold: true                     # 굵게
+    italic: true                   # 기울임
+    color: true                    # 글자색
+    underline: false               # 밑줄 (Excel 호환성 이슈)
+    strikeout: false               # 취소선
+
+  # 정렬
+  alignment:
+    enabled: true
+    horizontal: true               # 가로 정렬
+    vertical: true                 # 세로 정렬
+    wrap_text: true                # 텍스트 줄바꿈
+
+# -----------------------------------------------------------------------------
+# 3. 크기 (size)
+# -----------------------------------------------------------------------------
+size:
+  enabled: true
+
+  row_height:
+    enabled: true
+    min: 12                        # 최소 높이 (pt)
+    max: 409                       # 최대 높이 (pt, Excel 제한)
+
+  col_width:
+    enabled: true
+    min: 2                         # 최소 너비 (문자)
+    max: 255                       # 최대 너비 (문자, Excel 제한)
+
+# -----------------------------------------------------------------------------
+# 4. 필드 (field)
+# -----------------------------------------------------------------------------
+field:
+  enabled: true                    # 필드 생성 여부
+
+  # 한글 문서에 필드 설정
+  set_hwp_field: true
+
+  # 필드 이름 생성 규칙
+  naming:
+    # 우선순위: bookmark > pattern > random
+    use_bookmark: true             # 책갈피 이름 사용
+
+    pattern:                       # A_B 패턴
+      enabled: true
+      left_format: "{A}_"          # A만 있을 때: "A_"
+      top_format: "_{B}"           # B만 있을 때: "_B"
+      both_format: "{A}_{B}"       # 둘 다 있을 때: "A_B"
+      tolerance: 50                # 크기 비교 허용 오차 (HWPUNIT)
+
+    random:
+      length: 12                   # 랜덤 이름 길이
+
+  # 대상 셀 필터
+  target:
+    no_background_only: true       # 배경색 없는 셀만
+
+# -----------------------------------------------------------------------------
+# 5. 보호 (protection)
+# -----------------------------------------------------------------------------
+protection:
+  enabled: true                    # 시트 보호 활성화
+
+  # 셀 잠금 규칙
+  lock_rules:
+    with_background: true          # 배경색 있는 셀 잠금
+    without_background: false      # 배경색 없는 셀 잠금
+
+  # 보호 시 허용 동작
+  allow:
+    format_cells: true             # 셀 서식 변경
+    format_columns: true           # 열 서식 변경
+    format_rows: true              # 행 서식 변경
+    insert_columns: false          # 열 삽입
+    insert_rows: false             # 행 삽입
+    delete_columns: false          # 열 삭제
+    delete_rows: false             # 행 삭제
+
+# -----------------------------------------------------------------------------
+# 6. 출력 (output)
+# -----------------------------------------------------------------------------
+output:
+  # 시트 생성 옵션
+  sheets:
+    main: true                     # 메인 표 시트
+    page_info: true                # 페이지 정보 시트 (_page)
+    cell_info: true                # 셀 정보 시트 (_cells)
+    size_info: true                # 크기 정보 시트 (_sizes)
+
+  # 시트 이름 접미사
+  suffix:
+    page: "_page"
+    cells: "_cells"
+    sizes: "_sizes"
