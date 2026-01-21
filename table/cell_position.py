@@ -105,8 +105,200 @@ class CellPositionCalculator:
                 return idx
         return 0
 
+    def calculate_bfs(self, max_cells: int = 1000) -> CellPositionResult:
+        """
+        BFS 방식으로 테이블의 모든 셀 위치 및 범위 계산
+
+        - first_cols를 순차적으로 순회 (행 시작점)
+        - 각 행에서 오른쪽으로만 순회하며 X 누적
+        - 우측 이동 시에만 cumulative_x 누적
+        - 분할 셀은 재귀적으로 처리
+        """
+        from table.table_info import MOVE_RIGHT_OF_CELL, MOVE_DOWN_OF_CELL
+
+        boundary = self._get_boundary()
+        table_info = self._get_table_info()
+
+        if not boundary._is_in_table():
+            raise ValueError("커서가 테이블 내부에 있지 않습니다.")
+
+        # 경계 분석 - first_cols 얻기
+        result = boundary.check_boundary_table()
+        first_cols = boundary._sort_first_cols_by_position(result.first_cols)
+        first_cols_set = set(first_cols)
+
+        cell_positions = {}
+        x_levels = {0}
+        y_levels = {0}
+        visited = set()
+
+        def collect_sub_cells(parent_id, start_x, start_y, row_end_y):
+            """분할된 서브셀을 재귀적으로 수집 (아래 + 오른쪽)"""
+            self.hwp.SetPos(parent_id, 0, 0)
+            self.hwp.MovePos(MOVE_DOWN_OF_CELL, 0, 0)
+            sub_id = self.hwp.GetPos()[0]
+
+            if sub_id == parent_id or sub_id in visited:
+                return
+
+            # first_cols에 있는 셀이면 (다음 행의 시작) 처리하지 않음
+            if sub_id in first_cols_set:
+                return
+
+            # 서브셀 행을 오른쪽으로 순회
+            cumulative_x = start_x
+            current_sub = sub_id
+
+            while current_sub and current_sub not in visited:
+                # first_cols에 있는 셀이면 중단
+                if current_sub in first_cols_set:
+                    break
+
+                visited.add(current_sub)
+
+                self.hwp.SetPos(current_sub, 0, 0)
+                width, height = table_info.get_cell_dimensions()
+
+                sub_start_x = cumulative_x
+                sub_end_x = cumulative_x + width
+                sub_start_y = start_y
+                sub_end_y = start_y + height
+
+                cell_positions[current_sub] = {
+                    'start_x': sub_start_x, 'end_x': sub_end_x,
+                    'start_y': sub_start_y, 'end_y': sub_end_y,
+                }
+
+                x_levels.add(sub_start_x)
+                y_levels.add(sub_start_y)
+
+                # 서브셀이 더 분할되어 있으면 재귀
+                if sub_end_y < row_end_y:
+                    collect_sub_cells(current_sub, sub_start_x, sub_end_y, row_end_y)
+
+                # 서브셀 행에서 오른쪽으로 이동 (X 누적)
+                cumulative_x = sub_end_x
+
+                self.hwp.SetPos(current_sub, 0, 0)
+                self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
+                next_sub = self.hwp.GetPos()[0]
+
+                if next_sub == current_sub:
+                    break
+
+                current_sub = next_sub
+
+        # first_cols를 순차적으로 순회
+        cumulative_y = 0
+        total_cells = 0
+
+        for row_idx, row_start_id in enumerate(first_cols):
+            if total_cells >= max_cells:
+                if self.debug:
+                    print(f"[경고] 최대 셀 수({max_cells}) 도달, 중단")
+                break
+
+            # 현재 행의 첫 셀에서 시작
+            self.hwp.SetPos(row_start_id, 0, 0)
+            _, row_height = table_info.get_cell_dimensions()
+
+            row_start_y = cumulative_y
+            row_end_y = cumulative_y + row_height
+
+            y_levels.add(row_start_y)
+
+            if self.debug:
+                print(f"[BFS] 행 {row_idx}: first_col={row_start_id}, y={row_start_y}~{row_end_y}")
+
+            # 행 내에서 오른쪽으로 순회 (우측 이동 시에만 X 누적)
+            cumulative_x = 0
+            current_id = row_start_id
+
+            while current_id and current_id not in visited:
+                if total_cells >= max_cells:
+                    break
+
+                visited.add(current_id)
+                total_cells += 1
+
+                self.hwp.SetPos(current_id, 0, 0)
+                width, height = table_info.get_cell_dimensions()
+
+                start_x = cumulative_x
+                end_x = cumulative_x + width
+                start_y = row_start_y
+                end_y = row_start_y + height
+
+                cell_positions[current_id] = {
+                    'start_x': start_x, 'end_x': end_x,
+                    'start_y': start_y, 'end_y': end_y,
+                }
+
+                x_levels.add(start_x)
+                y_levels.add(start_y)
+
+                # 분할 셀 처리 (높이가 행 높이보다 작으면)
+                if height < row_height:
+                    collect_sub_cells(current_id, start_x, end_y, row_end_y)
+
+                # 우측 이동 (X 누적)
+                cumulative_x = end_x
+
+                self.hwp.SetPos(current_id, 0, 0)
+                self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
+                next_id = self.hwp.GetPos()[0]
+
+                if next_id == current_id:
+                    break  # 더 이상 오른쪽 셀 없음
+
+                # 다음 first_col 만나면 종료 (다른 행으로 넘어감)
+                if next_id in first_cols_set and next_id != row_start_id:
+                    break
+
+                current_id = next_id
+
+            # 다음 행의 Y 시작점
+            cumulative_y = row_end_y
+
+        # 레벨 병합
+        x_levels_list = self._merge_close_levels(list(x_levels))
+        y_levels_list = self._merge_close_levels(list(y_levels))
+
+        # 셀 범위 계산
+        cells = {}
+        for list_id, pos in cell_positions.items():
+            start_row = self._find_level_index(pos['start_y'], y_levels_list)
+            start_col = self._find_level_index(pos['start_x'], x_levels_list)
+            end_row = self._find_end_level_index(pos['end_y'], y_levels_list)
+            end_col = self._find_end_level_index(pos['end_x'], x_levels_list)
+
+            cells[list_id] = CellRange(
+                list_id=list_id,
+                start_row=start_row,
+                start_col=start_col,
+                end_row=end_row,
+                end_col=end_col,
+                rowspan=end_row - start_row + 1,
+                colspan=end_col - start_col + 1,
+                start_x=pos['start_x'],
+                start_y=pos['start_y'],
+                end_x=pos['end_x'],
+                end_y=pos['end_y'],
+            )
+
+        max_row = max(c.end_row for c in cells.values()) if cells else 0
+        max_col = max(c.end_col for c in cells.values()) if cells else 0
+
+        return CellPositionResult(
+            cells=cells,
+            x_levels=x_levels_list,
+            y_levels=y_levels_list,
+            max_row=max_row,
+            max_col=max_col,
+        )
+
     def calculate(self, max_cells: int = 1000) -> CellPositionResult:
-        """테이블의 모든 셀 위치 및 범위 계산"""
+        """테이블의 모든 셀 위치 및 범위 계산 (first_cols 기반)"""
         from table.table_info import MOVE_RIGHT_OF_CELL, MOVE_DOWN_OF_CELL
 
         boundary = self._get_boundary()
