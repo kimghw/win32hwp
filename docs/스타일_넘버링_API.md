@@ -382,7 +382,7 @@ def scan_and_apply_headings(hwp, remove_marker=True, debug=False):
 ### 예제 1: 기본 개요 번호 적용
 
 ```python
-from cursor_utils import get_hwp_instance
+from cursor import get_hwp_instance
 
 hwp = get_hwp_instance()
 
@@ -422,8 +422,8 @@ hwp.HAction.Run("ParaNumberBulletLevelDown")
 ### 예제 2: StyleNumb 클래스 사용
 
 ```python
-from style_numb import StyleNumb
-from cursor_utils import get_hwp_instance
+from style.style_numb import StyleNumb
+from cursor import get_hwp_instance
 
 hwp = get_hwp_instance()
 numb = StyleNumb(hwp)
@@ -468,8 +468,8 @@ hwp.HAction.Run("Cancel")
 ### 예제 4: 개요 번호 검증
 
 ```python
-from style_numb import StyleNumb
-from cursor_utils import get_hwp_instance
+from style.style_numb import StyleNumb
+from cursor import get_hwp_instance
 
 hwp = get_hwp_instance()
 numb = StyleNumb(hwp)
@@ -542,7 +542,7 @@ while True:
 
 ### 관련 코드
 
-- `style_numb.py` - StyleNumb 클래스 구현
+- `style/style_numb.py` - StyleNumb 클래스 구현
 - `styles.yaml` - 헤딩 레벨 매핑 설정 (heading_levels)
 
 ### 웹 리소스

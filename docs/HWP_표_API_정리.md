@@ -1,6 +1,6 @@
 # HWP 표(Table) API 정리
 
-> 최종 수정일: 2025년 4월 기준 API 문서 반영
+> 최종 수정일: 2026년 1월 (프로젝트 테이블 모듈 문서 추가)
 
 ---
 
@@ -675,4 +675,475 @@ def hwpunit_to_pt(hwpunit):
 
 def hwpunit_to_mm(hwpunit):
     return hwpunit / 283.46
+```
+
+---
+
+## 11. 프로젝트 테이블 모듈 (table/)
+
+프로젝트에서 제공하는 테이블 관련 모듈들입니다.
+
+### 모듈 구조
+
+| 모듈 | 파일 | 설명 |
+|------|------|------|
+| `table_info` | `table/table_info.py` | 테이블 구조 탐색, 셀 수집, 좌표 매핑 |
+| `table_boundary` | `table/table_boundary.py` | 테이블 경계 판별, 서브테이블 분할, 인접 관계 |
+| `table_cell_info` | `table/table_cell_info.py` | 셀 순회, 컨트롤 탐색, 서식 조회 |
+| `table_field` | `table/table_field.py` | 필드 CRUD, 좌표 연동 |
+
+---
+
+## 12. MovePos 셀 이동 상수 (100~107)
+
+셀 간 이동에 사용하는 MovePos 상수입니다.
+
+```python
+from table.table_info import (
+    MOVE_LEFT_OF_CELL,    # 100: 왼쪽 셀로 이동
+    MOVE_RIGHT_OF_CELL,   # 101: 오른쪽 셀로 이동
+    MOVE_UP_OF_CELL,      # 102: 위쪽 셀로 이동
+    MOVE_DOWN_OF_CELL,    # 103: 아래쪽 셀로 이동
+    MOVE_START_OF_CELL,   # 104: 행의 시작 셀 (맨 왼쪽)
+    MOVE_END_OF_CELL,     # 105: 행의 끝 셀 (맨 오른쪽)
+    MOVE_TOP_OF_CELL,     # 106: 열의 시작 셀 (맨 위)
+    MOVE_BOTTOM_OF_CELL,  # 107: 열의 끝 셀 (맨 아래)
+)
+
+# 사용 예시
+hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)  # 오른쪽 셀로 이동
+hwp.MovePos(MOVE_DOWN_OF_CELL, 0, 0)   # 아래쪽 셀로 이동
+hwp.MovePos(MOVE_START_OF_CELL, 0, 0)  # 행의 첫 번째 셀로 이동
+hwp.MovePos(MOVE_TOP_OF_CELL, 0, 0)    # 열의 첫 번째 셀로 이동
+```
+
+**참고:** 기본 MovePos 상수(0~13)와 달리 100~107은 테이블 셀 간 이동 전용입니다.
+
+---
+
+## 13. 셀 정보 수집: collect_cells_bfs()
+
+`TableInfo.collect_cells_bfs()`는 행 우선 순회로 테이블의 모든 셀을 탐색하고 이웃 정보를 수집합니다.
+
+### 사용법
+
+```python
+from table.table_info import TableInfo
+from cursor import get_hwp_instance
+
+hwp = get_hwp_instance()
+table = TableInfo(hwp, debug=True)
+
+# 셀 수집 (커서가 테이블 내부에 있어야 함)
+cells = table.collect_cells_bfs()
+
+# 결과: Dict[int, CellInfo]
+# - key: list_id
+# - value: CellInfo(list_id, left, right, up, down, width, height)
+for list_id, cell in cells.items():
+    print(f"셀 {list_id}: 좌={cell.left}, 우={cell.right}, 상={cell.up}, 하={cell.down}")
+    print(f"  크기: {cell.width}x{cell.height} HWPUNIT")
+```
+
+### CellInfo 데이터클래스
+
+```python
+@dataclass
+class CellInfo:
+    list_id: int      # 셀의 고유 ID
+    left: int = 0     # 왼쪽 셀의 list_id (없으면 0)
+    right: int = 0    # 오른쪽 셀의 list_id
+    up: int = 0       # 위쪽 셀의 list_id
+    down: int = 0     # 아래쪽 셀의 list_id
+    width: int = 0    # 셀 너비 (HWPUNIT)
+    height: int = 0   # 셀 높이 (HWPUNIT)
+```
+
+### 알고리즘
+
+1. 첫 셀에서 시작하여 오른쪽으로 이동하며 행의 모든 셀 수집
+2. 행 끝에서 첫 셀로 돌아가 아래로 이동
+3. 다음 행 반복
+4. 각 셀에서 4방향(좌/우/상/하) 이웃 정보 저장
+
+---
+
+## 14. 좌표 매핑: map_cell_coordinates_v4()
+
+`TableBoundary.map_cell_coordinates_v4()`는 병합 셀을 포함한 복잡한 테이블의 정확한 (row, col) 좌표를 계산합니다.
+
+### 사용법
+
+```python
+from table.table_boundary import TableBoundary
+from cursor import get_hwp_instance
+
+hwp = get_hwp_instance()
+boundary = TableBoundary(hwp, debug=True)
+
+# 경계 분석
+result = boundary.check_boundary_table()
+
+# 좌표 매핑 (v4: 서브셀 + 위쪽 셀 기준 열 조정)
+coord_result = boundary.map_cell_coordinates_v4(result)
+
+# 결과: CellCoordinateResult
+# - cells: Dict[int, CellCoordinate]  # list_id -> 좌표 정보
+# - max_row, max_col: 최대 행/열 번호
+# - traversal_order: 순회 순서
+
+for list_id, cell in coord_result.cells.items():
+    print(f"셀 {list_id}: ({cell.row}, {cell.col}), 방문횟수={cell.visit_count}")
+```
+
+### CellCoordinateResult 데이터클래스
+
+```python
+@dataclass
+class CellCoordinate:
+    list_id: int
+    row: int = 0          # 행 번호 (0부터 시작)
+    col: int = 0          # 열 번호 (0부터 시작)
+    visit_count: int = 0  # 해당 셀 방문 횟수
+
+@dataclass
+class CellCoordinateResult:
+    cells: Dict[int, CellCoordinate]  # list_id -> CellCoordinate
+    max_row: int = 0
+    max_col: int = 0
+    traversal_order: List[int]        # 순회 순서
+```
+
+### 알고리즘 (v4)
+
+**1단계: v3 기본 매핑**
+- first_col[0]에서 시작하여 오른쪽으로 순회
+- 새 셀(처음 방문)을 만나면 → 현재 행, 열+1
+- 이미 방문한 셀(2회 이상)을 만나면 → 행+1 (한 번만), 열은 왼쪽 열+1 유지
+- first_col을 만나면 → 열=0
+
+**2단계: 위쪽 셀 기준 열 조정**
+- 2행부터 각 셀에 대해
+- 커서를 0행까지 위로 올리면서 모든 위쪽 셀의 열 중 가장 큰 값 찾음
+- 열 번호 = max(위쪽 셀들의 최대 열, 왼쪽 셀의 열 + 1)
+
+### 버전 비교
+
+| 버전 | 설명 | 용도 |
+|------|------|------|
+| `map_cell_coordinates()` | 방문 횟수로 행 결정 | 간단한 테이블 |
+| `map_cell_coordinates_v2()` | first_col 기반 개선 | 중간 복잡도 |
+| `map_cell_coordinates_v3()` | 서브셀 기반 | 병합 셀 포함 |
+| `map_cell_coordinates_v4()` | v3 + 위쪽 셀 기준 열 조정 | **권장** |
+
+---
+
+## 15. 인접 관계: build_cell_adjacency()
+
+`TableBoundary.build_cell_adjacency()`는 모든 셀의 인접 노드(상/하/좌/우) 관계를 계산합니다.
+
+### 사용법
+
+```python
+from table.table_boundary import TableBoundary
+from cursor import get_hwp_instance
+
+hwp = get_hwp_instance()
+boundary = TableBoundary(hwp, debug=True)
+
+# 좌표 매핑 먼저 수행
+coord_result = boundary.map_cell_coordinates_v4()
+
+# 인접 관계 계산
+adjacency = boundary.build_cell_adjacency(coord_result)
+
+# 결과: CellAdjacencyResult
+# - nodes: Dict[int, CellAdjacency]  # list_id -> 인접 정보
+# - max_row, max_col
+
+for list_id, node in adjacency.nodes.items():
+    print(f"노드 {list_id} ({node.row},{node.col}):")
+    print(f"  왼쪽: {node.left}, 오른쪽: {node.right}")
+    print(f"  위쪽: {node.up}, 아래쪽: {node.down}")
+```
+
+### CellAdjacency 데이터클래스
+
+```python
+@dataclass
+class CellAdjacency:
+    list_id: int
+    row: int = 0
+    col: int = 0
+    left: List[int]   # 왼쪽 인접 노드들 (병합 셀이면 여러 개)
+    right: List[int]  # 오른쪽 인접 노드들
+    up: List[int]     # 위쪽 인접 노드들
+    down: List[int]   # 아래쪽 인접 노드들
+```
+
+### 알고리즘
+
+1. 각 셀에서 상/하/좌/우로 커서 이동하여 인접 셀 찾음
+2. **양방향 관계 활용**: A→B 이면 B→A도 성립
+   - 예: 13의 up이 3이면, 3의 down에 13 추가
+3. 병합 셀(예: 13)이 여러 셀(3~8)과 인접한 경우도 처리
+
+### JSON 저장
+
+```python
+# 인접 관계를 JSON 파일로 저장
+filepath = boundary.save_adjacency_to_json(adjacency, "cell_adjacency.json")
+```
+
+---
+
+## 16. 필드 CRUD 함수 (TableField)
+
+`TableField` 클래스는 테이블 내 필드의 생성/조회/수정/삭제와 셀 좌표 연동을 제공합니다.
+
+### 초기화
+
+```python
+from table.table_field import TableField
+from cursor import get_hwp_instance
+
+hwp = get_hwp_instance()
+tf = TableField(hwp, debug=True)
+
+# 첫 번째 테이블 진입 (좌표 맵 자동 초기화)
+tf.enter_table(0)
+```
+
+### 필드 조회 (Read)
+
+```python
+# 모든 필드 조회
+fields = tf.get_all_fields()
+
+# 셀 필드만 조회
+cell_fields = tf.get_cell_fields()
+
+# 누름틀 필드만 조회
+clickhere_fields = tf.get_clickhere_fields()
+
+# 이름으로 필드 조회
+field = tf.get_field_by_name("필드이름")
+
+# 특정 좌표의 필드들 조회
+fields_at = tf.get_fields_at_coord(row=1, col=2)
+
+# 필드 텍스트 조회
+text = tf.get_field_text("필드이름")
+
+# 필드 존재 여부
+exists = tf.field_exists("필드이름")
+```
+
+### 필드 생성 (Create)
+
+```python
+# 현재 커서 위치에 누름틀 필드 생성
+tf.create_field_at_cursor("필드이름", direction="안내문", memo="설명")
+
+# 특정 좌표에 필드 생성
+tf.create_field_at_coord(row=1, col=2, name="필드이름")
+
+# 셀 자체를 필드로 설정
+tf.set_cell_field_name(row=1, col=2, name="셀필드")
+
+# 구조화된 필드 이름 일괄 설정
+# 형식: {캡션}_{영역}_{row}_{col} (예: 표1_head_0_0)
+result = tf.set_structured_field_names(
+    caption="표1",
+    header_rows=1,
+    footer_rows=0
+)
+# 결과: {'head': [...], 'body': [...], 'foot': [...]}
+
+# JSON 형식 필드 이름 설정
+# 형식: {"table":"표이름","coord":[row,col],"desc":"","target":"","author":""}
+result = tf.set_table_fields_json(table_name="표1")
+```
+
+### 필드 수정 (Update)
+
+```python
+# 필드에 텍스트 입력
+tf.put_field_text("필드이름", "입력할 텍스트")
+
+# 특정 인덱스의 필드에 텍스트 입력 (동일 이름 필드가 여러 개일 때)
+tf.put_field_text_by_index("필드이름", index=0, text="텍스트")
+
+# 여러 필드에 일괄 입력
+tf.put_fields_text({
+    "필드1": "값1",
+    "필드2": "값2"
+})
+
+# 필드 이름 변경
+tf.rename_field("기존이름", "새이름")
+
+# 여러 필드 이름 일괄 변경
+tf.rename_fields({
+    "old1": "new1",
+    "old2": "new2"
+})
+
+# 필드 편집 가능 속성 변경
+tf.modify_field_editable("필드이름", editable=True)
+```
+
+### 필드 삭제 (Delete)
+
+```python
+# 현재 커서 위치의 필드 삭제 (내용은 유지)
+tf.delete_field_at_cursor()
+
+# 이름으로 필드 삭제
+tf.delete_field_by_name("필드이름")
+
+# 특정 좌표의 필드 삭제
+tf.delete_field_at_coord(row=1, col=2)
+
+# 필드 텍스트 비우기
+tf.clear_field_text("필드이름")
+```
+
+### 필드 이동 (Navigation)
+
+```python
+# 필드로 이동
+tf.move_to_field("필드이름", select=False)
+
+# 좌표의 첫 번째 필드로 이동
+tf.move_to_field_by_coord(row=1, col=2)
+```
+
+### JSON 필드 관련
+
+```python
+# JSON 필드명 생성
+field_name = tf.make_field_name(
+    table="표1", row=1, col=2,
+    desc="설명", target="대상", author="작성자"
+)
+
+# table과 coord로 필드 찾기
+full_name = tf.find_field_by_coord("표1", row=1, col=2)
+
+# table과 coord로 필드 값 조회
+value = tf.get_field_value_by_coord("표1", row=1, col=2)
+
+# table과 coord로 필드 값 설정
+tf.set_field_value_by_coord("표1", row=1, col=2, text="값")
+```
+
+### 유틸리티
+
+```python
+# 테이블 크기
+size = tf.get_table_size()  # {'rows': 5, 'cols': 3}
+
+# 필드 요약 정보
+summary = tf.get_field_summary()
+# {'total': 10, 'in_table': 8, 'outside_table': 2, 'fields': [...]}
+
+# 필드 맵 출력 (디버그용)
+tf.print_field_map()
+
+# 병합 셀 정보
+merge_info = tf.get_merge_info(list_id)
+# {'colspan': 2, 'rowspan': 1, 'representative': (0, 1), 'coords': [(0,1), (0,2)]}
+```
+
+---
+
+## 17. 테이블 경계 분석
+
+`TableBoundary.check_boundary_table()`은 테이블의 경계 정보를 분석합니다.
+
+### 사용법
+
+```python
+from table.table_boundary import TableBoundary
+from cursor import get_hwp_instance
+
+hwp = get_hwp_instance()
+boundary = TableBoundary(hwp, debug=True)
+
+# 경계 분석 (커서가 테이블 내부에 있어야 함)
+result = boundary.check_boundary_table()
+
+print(f"table_origin: {result.table_origin}")     # 첫 번째 셀
+print(f"table_end: {result.table_end}")           # 마지막 셀
+print(f"table_cell_counts: {result.table_cell_counts}")  # 총 셀 수
+print(f"first_rows: {result.first_rows}")         # 첫 번째 행 셀들
+print(f"bottom_rows: {result.bottom_rows}")       # 마지막 행 셀들
+print(f"first_cols: {result.first_cols}")         # 첫 번째 열 셀들
+print(f"last_cols: {result.last_cols}")           # 마지막 열 셀들
+```
+
+### TableBoundaryResult 데이터클래스
+
+```python
+@dataclass
+class TableBoundaryResult:
+    table_origin: int = 0       # 테이블 첫 번째 셀의 list_id
+    table_end: int = 0          # 마지막 셀의 list_id
+    table_cell_counts: int = 0  # 총 셀 개수
+    first_rows: List[int]       # 첫 번째 행 셀들의 list_id
+    bottom_rows: List[int]      # 마지막 행 셀들의 list_id
+    first_cols: List[int]       # 첫 번째 열 셀들의 list_id
+    last_cols: List[int]        # 마지막 열 셀들의 list_id
+```
+
+---
+
+## 18. 셀 유틸리티 함수 (table_cell_info)
+
+### 셀 순회
+
+```python
+from table.table_cell_info import iterate_table_cells
+
+def my_callback(hwp, row, col, list_id):
+    print(f"셀 ({row}, {col}): list_id={list_id}")
+    return True  # False 반환 시 순회 중단
+
+# 테이블 셀 순회
+visited = iterate_table_cells(hwp, my_callback)
+print(f"방문한 셀: {len(visited)}개")
+```
+
+### 셀 내 컨트롤 찾기
+
+```python
+from table.table_cell_info import get_ctrls_in_cell
+
+# 특정 셀 내의 컨트롤 찾기
+ctrls = get_ctrls_in_cell(hwp, target_list_id=5)
+for ctrl in ctrls:
+    print(f"컨트롤: {ctrl['id']} ({ctrl['desc']}), 문단={ctrl['para']}")
+```
+
+### 서식 정보 조회
+
+```python
+from table.table_cell_info import get_char_shape_info, get_para_shape_info
+
+# 글자 모양 정보
+font_name, font_size, char_spacing = get_char_shape_info(hwp)
+
+# 문단 모양 정보
+align, line_spacing = get_para_shape_info(hwp)
+```
+
+### 색상 텍스트 삽입
+
+```python
+from table.table_cell_info import insert_colored_text
+
+# BGR 형식 색상으로 텍스트 삽입
+insert_colored_text(hwp, "빨간색 텍스트", 0x0000FF)  # 빨강
+insert_colored_text(hwp, "파란색 텍스트", 0xFF0000)  # 파랑
 ```

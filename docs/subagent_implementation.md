@@ -7,6 +7,52 @@ HWP API 문서(`/mnt/c/win32hwp/win32/`)를 검색하는 서브에이전트를 �
 
 ---
 
+## 프로젝트 구조
+
+```
+/mnt/c/win32hwp/
+├── cursor.py                    # HWP ROT 연결, 커서/위치/상태 통합 모듈
+├── table/
+│   ├── __init__.py
+│   ├── table_info.py            # 셀 BFS 탐색, 좌표 매핑 (TableInfo 클래스)
+│   ├── table_boundary.py        # 테이블 경계 판별, 인접 관계 (TableBoundaryResult)
+│   ├── table_cell_info.py       # 셀 순회 유틸리티, 컨트롤 탐색
+│   └── table_field.py           # 필드 CRUD, 셀 좌표 연동 (TableField 클래스)
+├── style/
+│   ├── style_format.py          # 글자 모양 (CharShape) 조회/설정
+│   ├── style_para.py            # 문단 모양 (ParaShape), 스타일 관리 클래스
+│   └── style_numb.py            # 번호/글머리 기호 스타일
+├── example/
+│   ├── run_table_cell_info.py   # 테이블 셀 정보 실행 예제
+│   ├── run_table_field.py       # 테이블 필드 실행 예제
+│   ├── run_md_to_hwp.py         # MD→HWP 변환 실행 예제
+│   └── create_hwp_from_md.py    # MD→HWP 생성 예제
+├── hwp_analysis/
+│   └── auto_insert_fields.py    # 자동 필드 삽입 분석
+├── hwp_api_search_agent.py      # HWP API 병렬 검색 에이전트 (subprocess)
+├── hwp_api_search_single.py     # HWP API 단일 검색
+├── md_to_hwp.py                 # 마크다운→HWP 변환
+├── map_coordinates_to_table.py  # 셀 좌표 디버그 스크립트
+├── measure_cell_pos.py          # 셀 위치 측정 스크립트
+├── separated_para.py            # 분리된 문단 처리
+├── separated_word.py            # 분리된 단어 처리
+└── block_selector.py            # 블록 선택 유틸리티
+```
+
+### 핵심 모듈 설명
+
+| 모듈 | 주요 클래스/함수 | 설명 |
+|------|-----------------|------|
+| `cursor.py` | `get_hwp_instance()`, `Cursor` | ROT에서 HWP 인스턴스 연결, 커서 위치 관리 |
+| `table/table_info.py` | `TableInfo`, `CellInfo` | BFS로 테이블 구조 탐지, (row, col)→list_id 매핑 |
+| `table/table_boundary.py` | `TableBoundaryResult`, `SubTableResult` | 테이블 경계(첫/마지막 행열) 판별 |
+| `table/table_cell_info.py` | `iterate_table_cells()` | 테이블 셀 순회 콜백 패턴 |
+| `table/table_field.py` | `TableField`, `FieldInfo` | 필드 등록/조회/삭제/변경, 셀 좌표 연동 |
+| `style/style_format.py` | - | 글자 모양(굵게, 기울임, 색상 등) 조회/설정 |
+| `style/style_para.py` | `StylePara` | 문단 모양(정렬, 줄간격 등), 모양 복사/붙여넣기 |
+
+---
+
 ## 1. YAML 에이전트 파일 방식
 
 `.claude/agents/` 디렉토리에 YAML 파일을 생성하여 서브에이전트를 등록합니다.
