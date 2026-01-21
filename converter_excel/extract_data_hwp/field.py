@@ -2,9 +2,10 @@
 """필드 이름 생성 모듈
 
 배경색이 없는 셀에 대해 필드 이름을 생성합니다.
+Excel/openpyxl 관련 코드는 포함하지 않습니다.
 
 필드 이름 결정 우선순위:
-1. 셀에 책갈피가 있으면 → 책갈피 이름
+1. 셀에 책갈피가 있으면 -> 책갈피 이름
 2. A_B 패턴:
    - A: 좌측으로 가서 배경색 있는 셀 (조건: A의 높이 == 현재 셀의 높이)
    - B: 위쪽으로 가서 배경색 있는 셀 (조건: B의 너비 == 현재 셀의 너비)
@@ -14,16 +15,7 @@
 import random
 import string
 from dataclasses import dataclass
-from typing import Optional, Dict, List, Tuple, Any
-
-try:
-    from openpyxl import Workbook
-    from openpyxl.worksheet.worksheet import Worksheet
-    from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
-    from openpyxl.utils import get_column_letter
-    HAS_OPENPYXL = True
-except ImportError:
-    HAS_OPENPYXL = False
+from typing import Optional, Dict, List, Any
 
 
 @dataclass
@@ -284,74 +276,6 @@ def generate_field_names(
     return result
 
 
-def write_field_info_to_sheet(ws: 'Worksheet', fields: List[FieldInfo]):
-    """필드 정보를 엑셀 시트에 기록
-
-    Args:
-        ws: openpyxl Worksheet 객체
-        fields: FieldInfo 리스트
-    """
-    if not HAS_OPENPYXL:
-        raise ImportError("openpyxl이 필요합니다: pip install openpyxl")
-
-    # 스타일
-    header_font = Font(bold=True)
-    header_fill = PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")
-    thin_border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
-    )
-
-    # 헤더
-    headers = [
-        "list_id", "row", "col", "field_name", "source",
-        "text", "A_text", "A_row", "A_col", "B_text", "B_row", "B_col"
-    ]
-
-    for col_idx, header in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col_idx, value=header)
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.border = thin_border
-        cell.alignment = Alignment(horizontal='center')
-
-    # 데이터
-    sorted_fields = sorted(fields, key=lambda f: (f.row, f.col))
-
-    for row_idx, field in enumerate(sorted_fields, 2):
-        values = [
-            field.list_id,
-            field.row,
-            field.col,
-            field.field_name,
-            field.source,
-            field.text[:50] if field.text else "",
-            field.a_text,
-            field.a_row if field.a_row >= 0 else "",
-            field.a_col if field.a_col >= 0 else "",
-            field.b_text,
-            field.b_row if field.b_row >= 0 else "",
-            field.b_col if field.b_col >= 0 else "",
-        ]
-
-        for col_idx, value in enumerate(values, 1):
-            cell = ws.cell(row=row_idx, column=col_idx, value=value)
-            cell.border = thin_border
-
-    # 열 너비 조정
-    col_widths = [8, 5, 5, 30, 10, 30, 20, 5, 5, 20, 5, 5]
-    for col_idx, width in enumerate(col_widths, 1):
-        ws.column_dimensions[get_column_letter(col_idx)].width = width
-
-    # 인쇄 설정
-    ws.page_setup.orientation = 'landscape'
-    ws.page_setup.fitToPage = True
-    ws.page_setup.fitToWidth = 1
-    ws.page_setup.fitToHeight = 0
-
-
 def set_cell_field_names(hwp, fields: List[FieldInfo]) -> int:
     """한글 문서의 셀에 필드 이름 설정
 
@@ -396,12 +320,12 @@ def set_cell_field_names(hwp, fields: List[FieldInfo]) -> int:
 if __name__ == "__main__":
     import sys
     import os
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
     from cursor import get_hwp_instance
     from table.table_info import TableInfo
     from table.cell_position import CellPositionCalculator
-    from converter_excel.match_cell import extract_cell_style, get_cell_text
+    from converter_excel.extract_data_hwp.cell import extract_cell_style, get_cell_text
 
     hwp = get_hwp_instance()
     if not hwp:
@@ -439,19 +363,3 @@ if __name__ == "__main__":
         print(f"({field.row},{field.col}) {field.field_name} [{field.source}]")
         if field.a_text or field.b_text:
             print(f"    A: {field.a_text}, B: {field.b_text}")
-
-    # 엑셀 저장 테스트
-    if HAS_OPENPYXL:
-        from openpyxl import Workbook
-        import datetime
-
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "_files"
-
-        write_field_info_to_sheet(ws, fields)
-
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filepath = f"C:\\win32hwp\\test_fields_{timestamp}.xlsx"
-        wb.save(filepath)
-        print(f"\n저장 완료: {filepath}")

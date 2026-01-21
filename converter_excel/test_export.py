@@ -26,20 +26,20 @@ except ImportError:
     print("[오류] openpyxl이 필요합니다: pip install openpyxl")
     exit(1)
 
-from converter_excel.match_page import (
+from converter_excel.extract_data_hwp import (
     extract_page_info,
-    write_page_info_to_sheet,
-    apply_page_margins_to_excel,
-)
-from converter_excel.match_cell import (
     extract_cell_style,
     get_cell_text,
+    CellStyleData,
+    generate_field_names,
+)
+from converter_excel.apply_excel import (
+    write_page_info_to_sheet,
+    apply_page_margins_to_excel,
     write_cell_styles_to_sheet,
     write_row_col_sizes_to_sheet,
     apply_cell_style_to_excel_cell,
-    CellStyleData,
 )
-from converter_excel.field_name import generate_field_names
 
 
 def main():
@@ -244,7 +244,7 @@ def main():
     print(f"    필드 수: {len(fields)}개")
 
     # 한글 셀에 필드 설정
-    from converter_excel.field_name import set_cell_field_names
+    from converter_excel.extract_data_hwp import set_cell_field_names
     success_count = set_cell_field_names(hwp, fields)
     print(f"    한글 셀 필드 설정: {success_count}/{len(fields)}개")
 
