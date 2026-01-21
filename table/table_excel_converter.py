@@ -14,6 +14,7 @@ try:
     from openpyxl.utils import get_column_letter
     from openpyxl.styles import Alignment, Border, Side, Font
     from openpyxl.cell.cell import MergedCell
+    from openpyxl.worksheet.page import PageMargins
     HAS_OPENPYXL = True
 except ImportError:
     HAS_OPENPYXL = False
@@ -216,6 +217,19 @@ class TableExcelConverter:
         ws = wb.active
         ws.title = sheet_name
 
+        # 인쇄 설정: 페이지에 맞춤
+        ws.page_setup.fitToPage = True
+        ws.page_setup.fitToWidth = 1  # 1페이지 너비에 맞춤
+        ws.page_setup.fitToHeight = 0  # 높이는 자동
+        ws.page_setup.orientation = 'landscape'  # 가로 방향
+
+        # 여백 설정 (인치 단위)
+        ws.page_margins = PageMargins(
+            left=0.3, right=0.3,
+            top=0.3, bottom=0.3,
+            header=0.2, footer=0.2
+        )
+
         # 테두리 스타일
         thin_border = Border(
             left=Side(style='thin'),
@@ -329,17 +343,29 @@ class TableExcelConverter:
             if len(skipped_cells) > 10:
                 print(f"  ... 외 {len(skipped_cells) - 10}개")
 
-        # 열 너비 자동 조정
-        for col_idx in range(1, result.max_col + 2):
-            max_length = 0
-            column_letter = get_column_letter(col_idx)
-            for row_idx in range(1, result.max_row + 2):
-                cell = ws.cell(row=row_idx, column=col_idx)
-                if cell.value:
-                    # 한글은 2배 너비로 계산
-                    cell_length = sum(2 if ord(c) > 127 else 1 for c in str(cell.value))
-                    max_length = max(max_length, cell_length)
-            ws.column_dimensions[column_letter].width = min(max_length + 2, 50)
+        # 열 너비 조정 (HWP 실제 너비 기준)
+        x_levels = result.x_levels
+        if len(x_levels) > 1:
+            # HWPUNIT -> Excel 너비 변환
+            HWPUNIT_TO_EXCEL_WIDTH = 500
+            for col_idx in range(len(x_levels) - 1):
+                col_width_hwp = x_levels[col_idx + 1] - x_levels[col_idx]
+                col_width_excel = max(col_width_hwp / HWPUNIT_TO_EXCEL_WIDTH, 3)
+                column_letter = get_column_letter(col_idx + 1)
+                ws.column_dimensions[column_letter].width = min(col_width_excel, 50)
+
+        # 행 높이 조정 (HWP 실제 높이 기준)
+        y_levels = result.y_levels
+        if len(y_levels) > 1:
+            # HWPUNIT -> Excel 높이 변환 (포인트 단위)
+            HWPUNIT_TO_EXCEL_HEIGHT = 50
+            for row_idx in range(len(y_levels) - 1):
+                row_height_hwp = y_levels[row_idx + 1] - y_levels[row_idx]
+                row_height_excel = max(row_height_hwp / HWPUNIT_TO_EXCEL_HEIGHT, 15)
+                ws.row_dimensions[row_idx + 1].height = min(row_height_excel, 100)
+
+        if self.debug:
+            print(f"\n크기 설정: {len(x_levels)-1}열, {len(y_levels)-1}행")
 
         # _meta 시트 생성 (셀 속성 정보)
         ws_meta = wb.create_sheet(title="_meta")
