@@ -12,11 +12,27 @@
 table/
 ├── table_info.py           # 테이블 기본 정보 및 셀 순회
 ├── table_boundary.py       # 테이블 경계 판별 및 좌표 매핑
-├── cell_position.py        # XY맵 기반 셀 위치 계산
+├── cell_position.py        # xline/yline 기반 셀 위치 계산 (핵심)
 └── table_excel_converter.py # 엑셀 변환
 ```
 
-### 1.2 핵심 개념
+### 1.2 핵심 알고리즘: xline/yline 기반 그리드 생성
+
+**권장 방식**: `calculate_grid()` (= `calculate()`)
+
+```
+1. 모든 셀 순회 → 물리적 좌표 수집 (start_x, end_x, start_y, end_y)
+2. 수집된 x 좌표들에서 unique 값 추출 → xline (열 경계선)
+3. 수집된 y 좌표들에서 unique 값 추출 → yline (행 경계선)
+4. xline × yline 으로 그리드 생성 → 각 셀을 그리드에 매핑
+```
+
+**장점**:
+- 순회 순서에 의존하지 않음
+- 복잡한 병합 셀도 정확하게 처리
+- 물리 좌표 기반이므로 오차 없음
+
+### 1.3 핵심 개념
 
 | 개념 | 설명 |
 |------|------|
@@ -25,54 +41,57 @@ table/
 | `그리드 좌표` | 엑셀 스타일의 (row, col) 좌표 |
 | `X/Y 레벨` | 물리 좌표를 정규화한 그리드 경계선 |
 
-### 1.3 처리 흐름
+### 1.4 처리 흐름
 
 ```
 HWP 테이블
     │
     ▼
 ┌─────────────────────────────────┐
-│  1. 셀 순회 및 경계 판별        │  (TableBoundary)
-│     - first_cols, last_cols    │
-│     - BFS 순회                 │
+│  1. 경계 분석                    │  (TableBoundary)
+│     - first_cols, last_cols     │
+│     - 행 단위 순회 준비          │
 └─────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────┐
-│  2. 물리 좌표 수집 (XY맵)       │  (CellPositionCalculator)
-│     - 각 셀의 start_x, end_x   │
-│     - 각 셀의 start_y, end_y   │
+│  2. 물리 좌표 수집               │  (CellPositionCalculator.calculate_grid)
+│     - 모든 셀의 start/end x,y   │
+│     - 좌표 집합 생성            │
 └─────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────┐
-│  3. 그리드 레벨 생성            │  (CellPositionCalculator)
-│     - X 레벨 병합              │
-│     - Y 레벨 병합              │
+│  3. xline/yline 생성            │  (CellPositionCalculator)
+│     - x 좌표 → xline (열 경계)  │
+│     - y 좌표 → yline (행 경계)  │
+│     - 근접 레벨 병합            │
 └─────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────┐
-│  4. list_id → 그리드 좌표 매핑  │  (CellPositionCalculator)
-│     - 시작/끝 좌표 계산         │
-│     - rowspan, colspan 계산    │
+│  4. 그리드 매핑                  │  (CellPositionCalculator)
+│     - 물리 좌표 → 그리드 인덱스  │
+│     - rowspan, colspan 계산     │
 └─────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────┐
-│  5. 엑셀 변환                   │  (TableExcelConverter)
-│     - 셀 병합 적용             │
-│     - 텍스트 추출              │
+│  5. 엑셀 변환                    │  (TableExcelConverter)
+│     - 셀 병합 적용              │
+│     - 텍스트 추출               │
 └─────────────────────────────────┘
 ```
 
 ---
 
-## 2. XY맵 작성 과정 (물리 좌표 수집)
+## 2. calculate_grid() 알고리즘 (xline/yline 방식)
 
 ### 2.1 개요
 
-XY맵은 각 셀의 물리적 위치(HWPUNIT 단위)를 수집하는 과정입니다. 이 정보는 나중에 그리드 좌표로 변환됩니다.
+`calculate_grid()`는 모든 셀의 물리적 좌표를 수집한 후, xline(열 경계선)과 yline(행 경계선)을 추출하여 그리드를 생성합니다.
+
+**이 방식의 핵심**: 순회 순서에 의존하지 않고, 물리 좌표만으로 정확한 그리드 생성
 
 ### 2.2 주요 데이터 구조
 
@@ -94,65 +113,67 @@ class CellRange:
     end_y: int = 0      # 셀 끝 Y 좌표
 ```
 
-### 2.3 수집 알고리즘
+### 2.3 알고리즘 상세
 
-`CellPositionCalculator.calculate()` 메서드의 동작:
+`CellPositionCalculator.calculate_grid()` 메서드:
 
 ```
-1. 경계 분석 (TableBoundary)
-   ├── first_cols: 각 행의 첫 번째 셀 목록
-   └── last_cols: 각 행의 마지막 셀 목록
+1단계: 물리 좌표 수집
+───────────────────────────────────────────────────
+for row_start in first_cols:
+    │
+    ├── row_start_y = cumulative_y
+    ├── row_height = 행 시작 셀의 높이
+    │
+    └── BFS로 행 내 모든 셀 순회:
+        for each cell in row:
+            │
+            ├── 셀 크기 조회: width, height
+            │
+            ├── 물리 좌표 계산:
+            │   ├── start_x, end_x = start_x + width
+            │   └── start_y, end_y = start_y + height
+            │
+            └── 좌표 집합에 추가:
+                ├── all_x_coords.add(start_x)
+                ├── all_x_coords.add(end_x)
+                ├── all_y_coords.add(start_y)
+                └── all_y_coords.add(end_y)
 
-2. 행 단위 순회 (first_cols 기준)
-   for row_start in first_cols:
-       │
-       ├── 현재 행의 시작 Y 좌표 = cumulative_y
-       ├── 행 높이 = get_cell_dimensions()
-       │
-       └── 열 단위 순회 (오른쪽으로 이동)
-           while current_id not in last_cols:
-               │
-               ├── 셀 크기 조회: width, height
-               │
-               ├── 물리 좌표 기록:
-               │   ├── start_x = cumulative_x
-               │   ├── end_x = cumulative_x + width
-               │   ├── start_y = row_start_y
-               │   └── end_y = row_start_y + height
-               │
-               ├── X/Y 레벨에 좌표 추가
-               │
-               └── 분할 셀 처리 (height < row_height)
-                   └── collect_split_cells() 재귀 호출
+2단계: xline/yline 생성
+───────────────────────────────────────────────────
+x_levels = _merge_close_levels(all_x_coords)  # 열 경계선
+y_levels = _merge_close_levels(all_y_coords)  # 행 경계선
 
-3. X/Y 레벨 집합 완성
-   x_levels = {0, start_x1, start_x2, ...}
-   y_levels = {0, start_y1, end_y1, ...}
+3단계: 그리드 매핑
+───────────────────────────────────────────────────
+for each cell:
+    start_col = find_level_index(start_x, x_levels)
+    end_col = find_end_level_index(end_x, x_levels)
+    start_row = find_level_index(start_y, y_levels)
+    end_row = find_end_level_index(end_y, y_levels)
+
+    colspan = end_col - start_col + 1
+    rowspan = end_row - start_row + 1
 ```
 
-### 2.4 분할 셀 처리
+### 2.4 행 내 셀 순회 (BFS)
 
-행 내에서 세로로 분할된 셀(서브셀)을 처리하는 `collect_split_cells()`:
+행 내에서 오른쪽/아래 방향으로 BFS 순회:
 
 ```python
-def collect_split_cells(cell_id, start_x, start_y, row_end_y, visited):
-    """분할된 셀 재귀 순회"""
-    # 현재 셀 크기 조회
-    width, height = table_info.get_cell_dimensions()
+queue = deque([(row_start, 0, row_start_y)])
 
-    # 물리 좌표 기록
-    cell_positions[cell_id] = {
-        'start_x': start_x, 'end_x': start_x + width,
-        'start_y': start_y, 'end_y': start_y + height,
-    }
+while queue:
+    current_id, start_x, start_y = queue.popleft()
 
-    # 오른쪽 순회 (같은 서브 행 내)
-    if right_id != cell_id and right_id not in first_cols_set:
-        collect_split_cells(right_id, end_x, start_y, row_end_y, visited)
+    # 오른쪽 이동
+    if right_id not in visited and right_id not in first_cols_set:
+        queue.append((right_id, end_x, start_y))
 
-    # 아래 순회 (서브 행이 더 있으면)
-    if end_y < row_end_y:
-        collect_split_cells(down_id, start_x, end_y, row_end_y, visited)
+    # 아래 이동 (행 내 분할 셀 처리)
+    if end_y < row_end_y and down_id not in first_cols_set:
+        queue.append((down_id, start_x, end_y))
 ```
 
 ---
@@ -343,11 +364,14 @@ class TableBoundaryResult:
 
 ### 5.3 CellPositionCalculator (cell_position.py)
 
-XY맵 기반으로 정확한 셀 위치를 계산합니다.
+xline/yline 기반으로 정확한 셀 위치를 계산합니다.
 
 | 메서드 | 설명 |
 |--------|------|
-| `calculate()` | 모든 셀의 위치 및 범위 계산 (핵심 메서드) |
+| `calculate()` | **메인 메서드** - calculate_grid() 호출 |
+| `calculate_grid()` | xline/yline 기반 그리드 생성 (권장) |
+| `_calculate_bfs()` | [DEPRECATED] BFS 방식 (사용하지 않음) |
+| `_calculate_legacy()` | [DEPRECATED] 레거시 방식 (사용하지 않음) |
 | `_merge_close_levels()` | 근접한 레벨 병합 |
 | `_find_level_index()` | 시작 좌표의 레벨 인덱스 찾기 |
 | `_find_end_level_index()` | 끝 좌표의 레벨 인덱스 찾기 |

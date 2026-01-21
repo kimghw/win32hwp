@@ -105,13 +105,188 @@ class CellPositionCalculator:
                 return idx
         return 0
 
-    def calculate_bfs(self, max_cells: int = 1000) -> CellPositionResult:
+    def calculate_grid(self, max_cells: int = 1000) -> CellPositionResult:
         """
-        BFS 방식으로 테이블의 모든 셀 위치 및 범위 계산
+        xline/yline 기반 그리드 레벨 생성
 
-        - 모든 방향(상하좌우)으로 BFS 순회
-        - 우측으로 이동할 때만 X 좌표 누적 (매핑)
-        - 다른 방향은 순회만 하고 좌표는 기존 셀 기준으로 계산
+        알고리즘:
+        1. 모든 셀을 순회하며 물리적 좌표(start_x, start_y, end_x, end_y)만 수집
+        2. 수집된 모든 x 좌표에서 unique한 값들을 xline으로 추출
+        3. 수집된 모든 y 좌표에서 unique한 값들을 yline으로 추출
+        4. xline, yline으로 그리드를 만들고 각 셀을 매핑
+
+        이 방식은 BFS 순회 순서에 의존하지 않고,
+        물리적 좌표만으로 정확한 그리드를 생성합니다.
+        """
+        from table.table_info import MOVE_RIGHT_OF_CELL, MOVE_DOWN_OF_CELL
+        from collections import deque
+
+        table_info = self._get_table_info()
+        boundary = self._get_boundary()
+
+        if not table_info.is_in_table():
+            raise ValueError("커서가 테이블 내부에 있지 않습니다.")
+
+        # 경계 분석으로 first_cols, last_cols 획득
+        boundary_result = boundary.check_boundary_table()
+        first_cols = boundary._sort_first_cols_by_position(boundary_result.first_cols)
+        last_cols_set = set(boundary_result.last_cols)
+        first_cols_set = set(first_cols)
+
+        if self.debug:
+            print(f"[calculate_grid] first_cols: {first_cols}")
+            print(f"[calculate_grid] last_cols: {list(last_cols_set)}")
+
+        # 1단계: 모든 셀의 물리적 좌표 수집
+        cell_positions = {}  # list_id -> {start_x, end_x, start_y, end_y}
+        all_x_coords = set()  # 모든 x 좌표 (start_x, end_x)
+        all_y_coords = set()  # 모든 y 좌표 (start_y, end_y)
+
+        cumulative_y = 0
+        total_cells = 0
+
+        for row_idx, row_start in enumerate(first_cols):
+            if total_cells >= max_cells:
+                if self.debug:
+                    print(f"[경고] 최대 셀 수({max_cells}) 도달, 중단")
+                break
+
+            # 행 시작 셀의 높이 = 행 높이
+            self.hwp.SetPos(row_start, 0, 0)
+            _, row_height = table_info.get_cell_dimensions()
+
+            row_start_y = cumulative_y
+            row_end_y = cumulative_y + row_height
+
+            if self.debug:
+                print(f"[calculate_grid] 행 {row_idx}: y=[{row_start_y}~{row_end_y}], height={row_height}")
+
+            # 행 내 셀들을 BFS로 수집 (물리 좌표 계산)
+            visited_in_row = set()
+            queue = deque()
+
+            # 행 시작 셀
+            self.hwp.SetPos(row_start, 0, 0)
+            first_width, first_height = table_info.get_cell_dimensions()
+
+            queue.append((row_start, 0, row_start_y))  # (list_id, start_x, start_y)
+            visited_in_row.add(row_start)
+
+            while queue and total_cells < max_cells:
+                current_id, start_x, start_y = queue.popleft()
+                total_cells += 1
+
+                # 현재 셀 크기
+                self.hwp.SetPos(current_id, 0, 0)
+                width, height = table_info.get_cell_dimensions()
+
+                end_x = start_x + width
+                end_y = start_y + height
+
+                # 물리 좌표 저장
+                cell_positions[current_id] = {
+                    'start_x': start_x, 'end_x': end_x,
+                    'start_y': start_y, 'end_y': end_y,
+                }
+
+                # 모든 좌표 수집
+                all_x_coords.add(start_x)
+                all_x_coords.add(end_x)
+                all_y_coords.add(start_y)
+                all_y_coords.add(end_y)
+
+                if self.debug:
+                    print(f"  셀 {current_id}: x=[{start_x}~{end_x}], y=[{start_y}~{end_y}]")
+
+                # 오른쪽 이동
+                self.hwp.SetPos(current_id, 0, 0)
+                self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
+                right_id = self.hwp.GetPos()[0]
+
+                if (right_id != current_id and
+                    right_id not in visited_in_row and
+                    right_id not in first_cols_set):
+                    visited_in_row.add(right_id)
+                    queue.append((right_id, end_x, start_y))
+
+                # 아래 이동 (행 내 분할 셀 처리)
+                if end_y < row_end_y:
+                    self.hwp.SetPos(current_id, 0, 0)
+                    self.hwp.MovePos(MOVE_DOWN_OF_CELL, 0, 0)
+                    down_id = self.hwp.GetPos()[0]
+
+                    if (down_id != current_id and
+                        down_id not in visited_in_row and
+                        down_id not in first_cols_set):
+                        visited_in_row.add(down_id)
+                        queue.append((down_id, start_x, end_y))
+
+            cumulative_y = row_end_y
+
+        # 2단계: xline, yline 생성 (중복 제거 및 정렬)
+        x_levels_list = self._merge_close_levels(list(all_x_coords))
+        y_levels_list = self._merge_close_levels(list(all_y_coords))
+
+        if self.debug:
+            print(f"[calculate_grid] x_levels ({len(x_levels_list)}개): {x_levels_list}")
+            print(f"[calculate_grid] y_levels ({len(y_levels_list)}개): {y_levels_list}")
+
+        # 3단계: 각 셀을 그리드에 매핑
+        cells = {}
+        for list_id, pos in cell_positions.items():
+            start_row = self._find_level_index(pos['start_y'], y_levels_list)
+            start_col = self._find_level_index(pos['start_x'], x_levels_list)
+            end_row = self._find_end_level_index(pos['end_y'], y_levels_list)
+            end_col = self._find_end_level_index(pos['end_x'], x_levels_list)
+
+            # 유효성 검사
+            if start_row < 0 or start_col < 0:
+                if self.debug:
+                    print(f"[경고] 셀 {list_id} 레벨 매핑 실패: "
+                          f"start=({start_row},{start_col}), pos={pos}")
+                continue
+
+            cells[list_id] = CellRange(
+                list_id=list_id,
+                start_row=start_row,
+                start_col=start_col,
+                end_row=end_row,
+                end_col=end_col,
+                rowspan=end_row - start_row + 1,
+                colspan=end_col - start_col + 1,
+                start_x=pos['start_x'],
+                start_y=pos['start_y'],
+                end_x=pos['end_x'],
+                end_y=pos['end_y'],
+            )
+
+            if self.debug:
+                print(f"  셀 {list_id} → ({start_row},{start_col})~({end_row},{end_col})")
+
+        max_row = max(c.end_row for c in cells.values()) if cells else 0
+        max_col = max(c.end_col for c in cells.values()) if cells else 0
+
+        if self.debug:
+            print(f"[calculate_grid] 결과: {len(cells)}개 셀, {max_row+1}행 x {max_col+1}열")
+
+        return CellPositionResult(
+            cells=cells,
+            x_levels=x_levels_list,
+            y_levels=y_levels_list,
+            max_row=max_row,
+            max_col=max_col,
+        )
+
+    def _calculate_bfs(self, max_cells: int = 1000) -> CellPositionResult:
+        """
+        [DEPRECATED] BFS 방식으로 테이블의 모든 셀 위치 및 범위 계산
+
+        주의: 이 메서드는 더 이상 사용되지 않습니다.
+        calculate_grid() 또는 calculate()를 사용하세요.
+
+        문제점:
+        - 순회 방향에 따라 좌표 계산이 부정확할 수 있음
+        - 복잡한 병합 셀 구조에서 좌표 오류 발생
         """
         from table.table_info import (
             MOVE_RIGHT_OF_CELL, MOVE_DOWN_OF_CELL,
@@ -257,7 +432,26 @@ class CellPositionCalculator:
         )
 
     def calculate(self, max_cells: int = 1000) -> CellPositionResult:
-        """테이블의 모든 셀 위치 및 범위 계산 (first_cols 기반)"""
+        """
+        테이블의 모든 셀 위치 및 범위 계산 (메인 메서드)
+
+        내부적으로 calculate_grid()를 호출합니다.
+        xline/yline 기반으로 정확한 그리드를 생성합니다.
+
+        Args:
+            max_cells: 최대 처리할 셀 수 (기본 1000)
+
+        Returns:
+            CellPositionResult: 셀 위치 계산 결과
+        """
+        return self.calculate_grid(max_cells)
+
+    def _calculate_legacy(self, max_cells: int = 1000) -> CellPositionResult:
+        """
+        [DEPRECATED] 레거시 셀 위치 계산 (first_cols 기반)
+
+        calculate_grid() 사용을 권장합니다.
+        """
         from table.table_info import MOVE_RIGHT_OF_CELL, MOVE_DOWN_OF_CELL
 
         boundary = self._get_boundary()
