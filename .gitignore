@@ -1,3 +1,4 @@
 nul
 __pycache__/
 *.pyc
+*.xlsx
