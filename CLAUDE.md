@@ -284,6 +284,71 @@ line = key[4]            # 줄 번호
 
 ---
 
+## 단위 변환 (HWPUNIT ↔ Excel)
+
+### HWPUNIT 기본 변환
+
+| 단위 | HWPUNIT 값 | 계산식 |
+|------|-----------|--------|
+| 1 pt (포인트) | 100 | `hwpunit / 100 = pt` |
+| 1 inch (인치) | 7,200 | `hwpunit / 7200 = inch` |
+| 1 cm | ≈ 2,834.6 | `hwpunit / 2834.6 = cm` |
+| 1 mm | ≈ 283.46 | `hwpunit / 283.46 = mm` |
+
+### 엑셀 단위 체계
+
+| 항목 | 단위 | 설명 |
+|------|------|------|
+| 행 높이 | 포인트(pt) | 기본값 약 15pt |
+| 열 너비 | 문자 수 | 기본 폰트 기준 약 7pt/문자 |
+| 여백 (PageMargins) | 인치(inch) | left, right, top, bottom |
+
+### 변환 공식 (Python)
+
+```python
+# 상수 정의
+HWPUNIT_PER_PT = 100
+HWPUNIT_PER_INCH = 7200
+HWPUNIT_PER_CM = 7200 / 2.54  # ≈ 2834.6
+EXCEL_CHAR_WIDTH_PT = 7       # 1문자 ≈ 7pt
+
+# HWP → 엑셀 행 높이 (pt)
+excel_row_height = hwpunit / HWPUNIT_PER_PT
+
+# HWP → 엑셀 열 너비 (문자 수)
+excel_col_width = (hwpunit / HWPUNIT_PER_PT) / EXCEL_CHAR_WIDTH_PT
+# 또는 간단히: hwpunit / 700
+
+# HWP → 엑셀 여백 (inch)
+excel_margin_inch = hwpunit / HWPUNIT_PER_INCH
+
+# HWP → cm
+cm = hwpunit / HWPUNIT_PER_CM
+```
+
+### 사용 예시
+
+```python
+from openpyxl.worksheet.page import PageMargins
+
+# 한글 여백을 엑셀에 적용
+margins = PageMargins(
+    left=margin_left / 7200,
+    right=margin_right / 7200,
+    top=margin_top / 7200,
+    bottom=margin_bottom / 7200,
+)
+ws.page_margins = margins
+
+# 행 높이 설정 (pt)
+ws.row_dimensions[row].height = row_height_hwp / 100
+
+# 열 너비 설정 (문자 수)
+ws.column_dimensions['A'].width = col_width_hwp / 700
+```
+
+---
+
 ## Git 규칙
 
 **사용자가 명시적으로 요청한 경우에만** git 명령어를 실행합니다.
