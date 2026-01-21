@@ -48,17 +48,35 @@ class CellStyleData:
     margin_top: int = 0
     margin_bottom: int = 0
 
-    # 글꼴
+    # 글꼴 기본
     font_name: Optional[str] = None
     font_size_pt: float = 0
     font_bold: bool = False
     font_italic: bool = False
-    font_underline: bool = False
     font_color_rgb: Optional[Tuple[int, int, int]] = None
+
+    # 글꼴 장식
+    font_underline: int = 0        # 밑줄 타입 (0=없음, 1=실선, ...)
+    font_underline_color: Optional[Tuple[int, int, int]] = None
+    font_strikeout: int = 0        # 취소선 타입
+    font_strikeout_color: Optional[Tuple[int, int, int]] = None
+    font_outline: int = 0          # 외곽선 타입
+    font_shadow: int = 0           # 그림자 타입
+    font_emboss: bool = False      # 양각
+    font_engrave: bool = False     # 음각
+    font_superscript: bool = False # 위첨자
+    font_subscript: bool = False   # 아래첨자
+
+    # 자간/장평
+    char_spacing: int = 0      # 자간 (%)
+    char_ratio: int = 100      # 장평 (%)
 
     # 정렬
     align_horizontal: str = 'left'
     align_vertical: str = 'center'
+
+    # 줄간격
+    line_spacing: int = 0      # 줄간격 (%)
 
     # 테두리 (type, width)
     border_left_type: int = 0
@@ -72,6 +90,10 @@ class CellStyleData:
 
     # 텍스트
     text: str = ""
+
+    # 필드 이름 (배경색 없는 셀에만 설정)
+    field_name: str = ""
+    field_source: str = ""  # bookmark, A_B, A, B, random
 
 
 @dataclass
@@ -129,37 +151,81 @@ def extract_cell_style(hwp, list_id: int) -> CellStyleData:
         style.border_bottom_type = pset.BorderTypeBottom
         style.border_bottom_width = pset.BorderWidthBottom
 
-        # 2. 글자 속성 (CharShape)
+        # 2. 글자 속성 (HCharShape 파라미터셋)
         try:
-            char_shape = hwp.CharShape
-            if char_shape:
-                style.font_name = char_shape.Item("FaceNameHangul")
-                height = char_shape.Item("Height")
-                if height:
-                    style.font_size_pt = height / 100  # HWPUNIT -> pt
-                style.font_bold = bool(char_shape.Item("Bold"))
-                style.font_italic = bool(char_shape.Item("Italic"))
-                style.font_underline = bool(char_shape.Item("Underline"))
+            char_pset = hwp.HParameterSet.HCharShape
+            hwp.HAction.GetDefault("CharShape", char_pset.HSet)
 
-                # 글자색
-                text_color = char_shape.Item("TextColor")
-                if text_color and text_color > 0:
-                    b = (text_color >> 16) & 0xFF
-                    g = (text_color >> 8) & 0xFF
-                    r = text_color & 0xFF
-                    style.font_color_rgb = (r, g, b)
+            # 기본 속성
+            style.font_name = char_pset.FaceNameHangul
+            style.font_size_pt = char_pset.Height / 100  # HWPUNIT -> pt
+            style.font_bold = bool(char_pset.Bold)
+            style.font_italic = bool(char_pset.Italic)
+
+            # 글자색 (BGR -> RGB)
+            text_color = char_pset.TextColor
+            if text_color and text_color > 0:
+                b = (text_color >> 16) & 0xFF
+                g = (text_color >> 8) & 0xFF
+                r = text_color & 0xFF
+                style.font_color_rgb = (r, g, b)
+
+            # 밑줄
+            style.font_underline = char_pset.UnderlineType
+            underline_color = char_pset.UnderlineColor
+            if underline_color and underline_color > 0:
+                b = (underline_color >> 16) & 0xFF
+                g = (underline_color >> 8) & 0xFF
+                r = underline_color & 0xFF
+                style.font_underline_color = (r, g, b)
+
+            # 취소선
+            style.font_strikeout = char_pset.StrikeOutType
+            strikeout_color = char_pset.StrikeOutColor
+            if strikeout_color and strikeout_color > 0:
+                b = (strikeout_color >> 16) & 0xFF
+                g = (strikeout_color >> 8) & 0xFF
+                r = strikeout_color & 0xFF
+                style.font_strikeout_color = (r, g, b)
+
+            # 외곽선, 그림자, 양각/음각
+            style.font_outline = char_pset.OutLineType
+            style.font_shadow = char_pset.ShadowType
+            style.font_emboss = bool(char_pset.Emboss)
+            style.font_engrave = bool(char_pset.Engrave)
+
+            # 위첨자/아래첨자
+            style.font_superscript = bool(char_pset.SuperScript)
+            style.font_subscript = bool(char_pset.SubScript)
+
+            # 자간/장평 (한글 기준)
+            style.char_spacing = char_pset.SpacingHangul
+            style.char_ratio = char_pset.RatioHangul
         except:
             pass
 
-        # 3. 정렬 (ParaShape)
+        # 3. 정렬/줄간격 (텍스트 선택 후 ParaShape)
         try:
-            para_shape = hwp.ParaShape
-            if para_shape:
-                align_val = para_shape.Item("Align")
-                align_map = {0: 'justify', 1: 'left', 2: 'right', 3: 'center', 4: 'distribute', 5: 'divide'}
-                style.align_horizontal = align_map.get(align_val, 'left')
+            # 위치 재설정 후 텍스트 선택
+            hwp.SetPos(list_id, 0, 0)
+            hwp.HAction.Run("MoveSelParaEnd")
+            ps = hwp.ParaShape
+            if ps:
+                align_val = ps.Item("AlignType")
+                if align_val is not None:
+                    # 0=양쪽, 1=왼쪽, 2=오른쪽, 3=가운데, 4=배분, 5=나눔
+                    align_map = {0: 'justify', 1: 'left', 2: 'right', 3: 'center', 4: 'distribute', 5: 'divide'}
+                    style.align_horizontal = align_map.get(align_val, 'left')
+
+                line_sp = ps.Item("LineSpacing")
+                if line_sp is not None:
+                    style.line_spacing = line_sp
+            hwp.HAction.Run("Cancel")
         except:
             pass
+
+        # 4. 셀 세로 정렬 - CellShape.VertAlign이 항상 0 반환하는 문제 있음
+        # 기본값 'center' 사용 (CellStyleData에서 설정됨)
 
     except Exception as e:
         pass
@@ -168,14 +234,24 @@ def extract_cell_style(hwp, list_id: int) -> CellStyleData:
 
 
 def get_cell_text(hwp, list_id: int) -> str:
-    """셀 텍스트 추출"""
+    """셀 텍스트 추출 (SelectAll 사용)"""
     try:
         hwp.SetPos(list_id, 0, 0)
-        hwp.HAction.Run("MoveParaEnd")
-        hwp.HAction.Run("MoveSelParaBegin")
-        text = hwp.GetTextFile("TEXT", "").strip()
+
+        # SelectAll로 셀 전체 선택
+        hwp.HAction.Run("SelectAll")
+
+        # 선택된 텍스트 가져오기 (saveblock 옵션 사용)
+        text = hwp.GetTextFile("TEXT", "saveblock")
+
+        # 선택 해제
         hwp.HAction.Run("Cancel")
-        return text
+
+        # 텍스트 정리
+        if text:
+            text = text.strip().replace('\r\n', ' ').replace('\r', ' ').replace('\n', ' ')
+            return text
+        return ""
     except:
         return ""
 
@@ -214,14 +290,21 @@ def write_cell_styles_to_sheet(ws: 'Worksheet', cells: List[CellStyleData],
         "bg_color",
         # 셀 내부 여백 (pt)
         "margin_L", "margin_R", "margin_T", "margin_B",
-        # 글꼴
-        "font_name", "font_size", "bold", "italic", "underline", "font_color",
+        # 글꼴 기본
+        "font_name", "font_size", "bold", "italic", "font_color",
+        # 글꼴 장식
+        "underline", "strikeout", "outline", "shadow", "emboss", "engrave",
+        "superscript", "subscript",
+        # 자간/장평/줄간격
+        "char_spacing", "char_ratio", "line_spacing",
         # 정렬
         "align_h", "align_v",
         # 테두리
         "border_L", "border_R", "border_T", "border_B",
         # 텍스트
-        "text"
+        "text",
+        # 필드
+        "field_name", "field_source"
     ]
 
     for col_idx, header in enumerate(headers, 1):
@@ -258,13 +341,25 @@ def write_cell_styles_to_sheet(ws: 'Worksheet', cells: List[CellStyleData],
             round(cell_data.margin_right / 100, 1),
             round(cell_data.margin_top / 100, 1),
             round(cell_data.margin_bottom / 100, 1),
-            # 글꼴
+            # 글꼴 기본
             cell_data.font_name or "",
             cell_data.font_size_pt,
             "Y" if cell_data.font_bold else "",
             "Y" if cell_data.font_italic else "",
-            "Y" if cell_data.font_underline else "",
             f"#{cell_data.font_color_rgb[0]:02X}{cell_data.font_color_rgb[1]:02X}{cell_data.font_color_rgb[2]:02X}" if cell_data.font_color_rgb else "",
+            # 글꼴 장식
+            cell_data.font_underline if cell_data.font_underline else "",
+            cell_data.font_strikeout if cell_data.font_strikeout else "",
+            cell_data.font_outline if cell_data.font_outline else "",
+            cell_data.font_shadow if cell_data.font_shadow else "",
+            "Y" if cell_data.font_emboss else "",
+            "Y" if cell_data.font_engrave else "",
+            "Y" if cell_data.font_superscript else "",
+            "Y" if cell_data.font_subscript else "",
+            # 자간/장평/줄간격
+            cell_data.char_spacing,
+            cell_data.char_ratio,
+            cell_data.line_spacing,
             # 정렬
             cell_data.align_horizontal,
             cell_data.align_vertical,
@@ -274,7 +369,10 @@ def write_cell_styles_to_sheet(ws: 'Worksheet', cells: List[CellStyleData],
             f"{cell_data.border_top_type}/{cell_data.border_top_width}",
             f"{cell_data.border_bottom_type}/{cell_data.border_bottom_width}",
             # 텍스트
-            cell_data.text[:50] if cell_data.text else ""  # 50자 제한
+            cell_data.text[:50] if cell_data.text else "",  # 50자 제한
+            # 필드
+            cell_data.field_name or "",
+            cell_data.field_source or ""
         ]
 
         for col_idx, value in enumerate(values, 1):
@@ -290,14 +388,17 @@ def write_cell_styles_to_sheet(ws: 'Worksheet', cells: List[CellStyleData],
 
     # 열 너비 조정
     col_widths_excel = [
-        8, 5, 5, 7, 7, 7, 7,  # 위치
-        8, 8, 8, 8, 8, 8,     # 물리 좌표
-        10,                    # 배경색
-        7, 7, 7, 7,           # 여백
-        12, 8, 5, 5, 5, 10,   # 글꼴
-        8, 8,                  # 정렬
-        8, 8, 8, 8,           # 테두리
-        25                     # 텍스트
+        8, 5, 5, 7, 7, 7, 7,     # 위치 (7개)
+        8, 8, 8, 8, 8, 8,        # 물리 좌표 (6개)
+        10,                       # 배경색 (1개)
+        7, 7, 7, 7,              # 여백 (4개)
+        12, 8, 5, 5, 10,         # 글꼴 기본: name, size, bold, italic, color (5개)
+        8, 8, 7, 7, 7, 7, 8, 8,  # 글꼴 장식: underline, strikeout, outline, shadow, emboss, engrave, superscript, subscript (8개)
+        10, 10, 10,              # 자간/장평/줄간격 (3개)
+        8, 8,                     # 정렬 (2개)
+        8, 8, 8, 8,              # 테두리 (4개)
+        25,                       # 텍스트 (1개)
+        25, 10                    # 필드: field_name, field_source (2개)
     ]
     for col_idx, width in enumerate(col_widths_excel, 1):
         ws.column_dimensions[get_column_letter(col_idx)].width = width

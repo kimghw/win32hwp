@@ -17,8 +17,9 @@ from table.cell_position import CellPositionCalculator
 try:
     from openpyxl import Workbook
     from openpyxl.worksheet.page import PageMargins
-    from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+    from openpyxl.styles import Font, Alignment, Border, Side, PatternFill, Protection
     from openpyxl.utils import get_column_letter
+    from openpyxl.worksheet.protection import SheetProtection
     HAS_OPENPYXL = True
 except ImportError:
     HAS_OPENPYXL = False
@@ -38,6 +39,7 @@ from converter_excel.match_cell import (
     apply_cell_style_to_excel_cell,
     CellStyleData,
 )
+from converter_excel.field_name import generate_field_names
 
 
 def main():
@@ -128,8 +130,9 @@ def main():
     # ------------------------------------------------------------
     # Sheet 1: 표 데이터 (메인)
     # ------------------------------------------------------------
+    SHEET_NAME = "표"  # 메인 시트 이름 (다른 시트는 이 이름 기준으로 생성)
     ws_main = wb.active
-    ws_main.title = "표"
+    ws_main.title = SHEET_NAME
 
     # 한글 페이지 설정 적용
     apply_page_margins_to_excel(ws_main, page_result.page_meta)
@@ -144,6 +147,10 @@ def main():
         top=Side(style='thin'),
         bottom=Side(style='thin')
     )
+
+    # 셀 보호 스타일
+    locked_protection = Protection(locked=True)
+    unlocked_protection = Protection(locked=False)
 
     # 병합 트래킹
     merged_cells = set()
@@ -161,6 +168,12 @@ def main():
         cell.value = cell_data.text
         cell.border = thin_border
 
+        # 배경색이 있는 셀은 잠금, 없으면 편집 가능
+        if cell_data.bg_color_rgb:
+            cell.protection = locked_protection
+        else:
+            cell.protection = unlocked_protection
+
         # 스타일 적용
         apply_cell_style_to_excel_cell(ws_main, excel_row, excel_col, cell_data)
 
@@ -176,7 +189,7 @@ def main():
                 end_column=end_col
             )
 
-            # 병합 영역 트래킹 및 테두리/배경 적용
+            # 병합 영역 트래킹 및 테두리/배경/잠금 적용
             for r in range(excel_row, end_row + 1):
                 for c in range(excel_col, end_col + 1):
                     merged_cells.add((r, c))
@@ -187,6 +200,9 @@ def main():
                             rgb = cell_data.bg_color_rgb
                             hex_color = f"{rgb[0]:02X}{rgb[1]:02X}{rgb[2]:02X}"
                             merged_cell.fill = PatternFill(start_color=hex_color, end_color=hex_color, fill_type="solid")
+                            merged_cell.protection = locked_protection
+                        else:
+                            merged_cell.protection = unlocked_protection
                     except:
                         pass
 
@@ -199,42 +215,83 @@ def main():
     for row_idx, height in enumerate(row_heights):
         ws_main.row_dimensions[row_idx + 1].height = max(height / 100, 12)
 
-    print(f"    [표] 시트 생성 완료")
+    # 시트 보호 활성화 (배경색 있는 셀만 잠금됨, 서식 변경은 허용)
+    ws_main.protection = SheetProtection(
+        sheet=True,
+        formatCells=False,      # 셀 서식 변경 허용
+        formatColumns=False,    # 열 서식 변경 허용
+        formatRows=False,       # 행 서식 변경 허용
+        insertColumns=False,    # 열 삽입 허용
+        insertRows=False,       # 행 삽입 허용
+        deleteColumns=False,    # 열 삭제 허용
+        deleteRows=False,       # 행 삭제 허용
+    )
+
+    print(f"    [{SHEET_NAME}] 시트 생성 완료 (배경색 셀 잠금)")
 
     # ------------------------------------------------------------
     # Sheet 2: 페이지 설정
     # ------------------------------------------------------------
-    ws_page = wb.create_sheet(title="_page")
+    ws_page = wb.create_sheet(title=f"{SHEET_NAME}_page")
     write_page_info_to_sheet(ws_page, page_result.page_meta)
-    print(f"    [_page] 시트 생성 완료")
+    print(f"    [{SHEET_NAME}_page] 시트 생성 완료")
 
     # ------------------------------------------------------------
-    # Sheet 3: 셀 스타일 정보
+    # 필드 이름 생성 및 한글 셀에 설정
     # ------------------------------------------------------------
-    ws_cells = wb.create_sheet(title="_cells")
+    print("\n[5] 필드 이름 생성 및 한글 셀에 설정...")
+    fields = generate_field_names(hwp, cells_data)
+    print(f"    필드 수: {len(fields)}개")
+
+    # 한글 셀에 필드 설정
+    from converter_excel.field_name import set_cell_field_names
+    success_count = set_cell_field_names(hwp, fields)
+    print(f"    한글 셀 필드 설정: {success_count}/{len(fields)}개")
+
+    # cells_data에 필드 정보 추가 (list_id 기준 매핑)
+    field_map = {f.list_id: f for f in fields}
+    for cell_data in cells_data:
+        if cell_data.list_id in field_map:
+            field_info = field_map[cell_data.list_id]
+            cell_data.field_name = field_info.field_name
+            cell_data.field_source = field_info.source
+
+    # ------------------------------------------------------------
+    # Sheet 3: 셀 스타일 정보 (필드 정보 포함)
+    # ------------------------------------------------------------
+    ws_cells = wb.create_sheet(title=f"{SHEET_NAME}_cells")
     write_cell_styles_to_sheet(ws_cells, cells_data, row_heights, col_widths)
-    print(f"    [_cells] 시트 생성 완료")
+    print(f"    [{SHEET_NAME}_cells] 시트 생성 완료 (필드 정보 포함)")
 
     # ------------------------------------------------------------
     # Sheet 4: 행/열 크기
     # ------------------------------------------------------------
-    ws_sizes = wb.create_sheet(title="_sizes")
+    ws_sizes = wb.create_sheet(title=f"{SHEET_NAME}_sizes")
     write_row_col_sizes_to_sheet(ws_sizes, row_heights, col_widths)
-    print(f"    [_sizes] 시트 생성 완료")
+    print(f"    [{SHEET_NAME}_sizes] 시트 생성 완료")
 
     # ============================================================
-    # 5. 저장
+    # 6. 저장
     # ============================================================
-    wb.save(OUTPUT_FILE)
-
-    print("\n" + "=" * 60)
-    print(f"저장 완료: {OUTPUT_FILE}")
-    print("=" * 60)
+    try:
+        wb.save(OUTPUT_FILE)
+        print("\n" + "=" * 60)
+        print(f"저장 완료: {OUTPUT_FILE}")
+        print("=" * 60)
+    except PermissionError:
+        # 파일이 열려 있으면 타임스탬프 붙여서 저장
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        alt_file = f"C:\\win32hwp\\export_test_{timestamp}.xlsx"
+        wb.save(alt_file)
+        print("\n" + "=" * 60)
+        print(f"[주의] {OUTPUT_FILE}이 열려 있어 다른 이름으로 저장:")
+        print(f"저장 완료: {alt_file}")
+        print("=" * 60)
     print(f"\n시트 구성:")
-    print(f"  - 표       : 한글 표 데이터 (배경색, 병합 포함)")
-    print(f"  - _page    : 페이지 설정 (용지, 여백)")
-    print(f"  - _cells   : 셀 스타일 정보 (배경색, 글꼴, 정렬, 테두리)")
-    print(f"  - _sizes   : 행 높이 / 열 너비")
+    print(f"  - {SHEET_NAME}       : 한글 표 데이터 (배경색, 병합 포함)")
+    print(f"  - {SHEET_NAME}_page  : 페이지 설정 (용지, 여백)")
+    print(f"  - {SHEET_NAME}_cells : 셀 스타일 + 필드 정보 (field_name, field_source 포함)")
+    print(f"  - {SHEET_NAME}_sizes : 행 높이 / 열 너비")
 
 
 if __name__ == "__main__":
