@@ -283,6 +283,270 @@ class TableBoundary:
         # 이동 실패, tbl 밖, 또는 같은 셀이면 마지막 열
         return not result or not has_tbl or new_list_id == target_list_id
 
+    def _calc_xend_from_first_rows(self, first_rows: List[int]) -> int:
+        """
+        first_rows 셀들의 너비 합 = xend (테이블 전체 가로 크기)
+
+        Args:
+            first_rows: 첫 번째 행의 셀 list_id 리스트
+
+        Returns:
+            int: xend (HWPUNIT)
+        """
+        if not first_rows:
+            return 0
+
+        first_rows_set = set(first_rows)
+        start_cell = first_rows[0]
+        self.hwp.SetPos(start_cell, 0, 0)
+
+        cumulative_x = 0
+        current_id = start_cell
+
+        while current_id in first_rows_set:
+            w, _ = self._table_info.get_cell_dimensions()
+            cumulative_x += w
+
+            self.hwp.SetPos(current_id, 0, 0)
+            self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
+            next_id = self.hwp.GetPos()[0]
+
+            if next_id == current_id:
+                break
+
+            current_id = next_id
+
+        self._log(f"[xend] first_rows: {first_rows}, xend={cumulative_x}")
+        return cumulative_x
+
+    def _find_lastcols_by_xend(self, start_cell: int, xend: int, tolerance: int = 50) -> dict:
+        """
+        start_cell부터 우측으로 순회하면서 xend 기준으로 last_cols 찾기
+
+        - xend 초과 시: 이전 셀 = last_col, 현재 셀 = first_col
+        - xend 도달 시: 현재 셀 = last_col
+
+        Args:
+            start_cell: 시작 셀 list_id
+            xend: 테이블 전체 가로 크기 (HWPUNIT)
+            tolerance: 허용 오차 (HWPUNIT)
+
+        Returns:
+            dict: {'first_cols': [...], 'last_cols': [...]}
+        """
+        self.hwp.SetPos(start_cell, 0, 0)
+        current_id = start_cell
+        cumulative_x = 0
+        last_cols = []
+        first_cols = [start_cell]
+        prev_id = None
+
+        max_iterations = 1000
+
+        for _ in range(max_iterations):
+            self.hwp.SetPos(current_id, 0, 0)
+            w, _ = self._table_info.get_cell_dimensions()
+            cumulative_x += w
+
+            # xend 초과 → 이전 셀이 last_col, 현재 셀은 새 행의 first_col
+            if cumulative_x > xend + tolerance:
+                if prev_id is not None:
+                    last_cols.append(prev_id)
+
+                first_cols.append(current_id)
+                cumulative_x = w
+                prev_id = None
+
+            # xend 도달 (오차 범위 내)
+            elif abs(cumulative_x - xend) <= tolerance:
+                last_cols.append(current_id)
+
+                # 우측 이동
+                self.hwp.SetPos(current_id, 0, 0)
+                self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
+                next_id = self.hwp.GetPos()[0]
+
+                if next_id == current_id:
+                    break
+
+                first_cols.append(next_id)
+                cumulative_x = 0
+                prev_id = None
+                current_id = next_id
+                continue
+
+            # 우측 이동
+            prev_id = current_id
+            self.hwp.SetPos(current_id, 0, 0)
+            self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
+            next_id = self.hwp.GetPos()[0]
+
+            if next_id == current_id:
+                last_cols.append(current_id)
+                break
+
+            current_id = next_id
+
+        self._log(f"[xend 순회] first_cols: {first_cols}")
+        self._log(f"[xend 순회] last_cols: {last_cols}")
+
+        return {
+            'first_cols': first_cols,
+            'last_cols': last_cols,
+        }
+
+    def map_grid_by_xend(self, start_cell: int = None, xend: int = None, tolerance: int = 50) -> dict:
+        """
+        xend 기준으로 그리드 좌표 매핑 (x좌표 기반 컬럼 결정)
+
+        - cumulative_x > xend → 새 행 시작
+        - cumulative_x == xend → 현재 셀이 마지막 열
+        - 컬럼 위치는 셀의 start_x 좌표로 결정 (rowspan 셀 일관성 유지)
+
+        Args:
+            start_cell: 시작 셀 list_id (없으면 자동 계산)
+            xend: 테이블 전체 가로 크기 (없으면 자동 계산)
+            tolerance: 허용 오차 (HWPUNIT)
+
+        Returns:
+            dict: {
+                'grid': {list_id: {'row': r, 'col': c, 'start_x': x, 'width': w, 'height': h}},
+                'rowspan_positions': {list_id: [(row, col), ...]},
+                'col_positions': [x좌표들],  # 컬럼 경계 x좌표
+                'max_row': 최대 행,
+                'max_col': 최대 열,
+                'xend': 사용된 xend 값
+            }
+        """
+        # xend와 start_cell 자동 계산
+        if xend is None or start_cell is None:
+            cells = self._table_info.collect_cells_bfs()
+            if not cells:
+                return {'grid': {}, 'rowspan_positions': {}, 'col_positions': [],
+                        'max_row': 0, 'max_col': 0, 'xend': 0}
+
+            all_list_ids = sorted(cells.keys())
+
+            first_rows = []
+            for list_id in all_list_ids:
+                if self.check_first_row_cell(list_id):
+                    first_rows.append(list_id)
+            first_rows.sort()
+
+            if not first_rows:
+                return {'grid': {}, 'rowspan_positions': {}, 'col_positions': [],
+                        'max_row': 0, 'max_col': 0, 'xend': 0}
+
+            if start_cell is None:
+                start_cell = first_rows[0]
+            if xend is None:
+                xend = self._calc_xend_from_first_rows(first_rows)
+
+        self._log(f"[map_grid] start_cell={start_cell}, xend={xend}")
+
+        grid = {}
+        rowspan_positions = {}
+        col_positions = set()  # 모든 컬럼 시작 x좌표 수집
+        row = 0
+        start_x = 0  # 현재 셀의 시작 x좌표
+        cumulative_x = 0
+        max_col = 0
+
+        self.hwp.SetPos(start_cell, 0, 0)
+        current_id = start_cell
+
+        # 1차 순회: 모든 셀의 start_x 수집
+        temp_cells = []
+        for _ in range(1000):
+            self.hwp.SetPos(current_id, 0, 0)
+            w, h = self._table_info.get_cell_dimensions()
+
+            # xend 초과 → 새 행
+            if cumulative_x + w > xend + tolerance:
+                row += 1
+                start_x = 0
+                cumulative_x = 0
+
+            temp_cells.append({
+                'id': current_id,
+                'row': row,
+                'start_x': start_x,
+                'width': w,
+                'height': h
+            })
+            col_positions.add(start_x)
+
+            cumulative_x += w
+            start_x = cumulative_x
+
+            # xend 도달
+            if abs(cumulative_x - xend) <= tolerance:
+                self.hwp.SetPos(current_id, 0, 0)
+                self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
+                next_id = self.hwp.GetPos()[0]
+                if next_id == current_id:
+                    break
+                row += 1
+                start_x = 0
+                cumulative_x = 0
+                current_id = next_id
+                continue
+
+            self.hwp.SetPos(current_id, 0, 0)
+            self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
+            next_id = self.hwp.GetPos()[0]
+            if next_id == current_id:
+                break
+            current_id = next_id
+
+        # end_x도 컬럼 경계에 추가 (colspan 계산용)
+        for cell in temp_cells:
+            end_x = cell['start_x'] + cell['width']
+            col_positions.add(end_x)
+
+        # 컬럼 위치 정렬 (x좌표 → col 인덱스 매핑)
+        sorted_col_positions = sorted(col_positions)
+        x_to_col = {x: i for i, x in enumerate(sorted_col_positions)}
+        max_col = len(sorted_col_positions) - 1 if sorted_col_positions else 0
+
+        self._log(f"[map_grid] col_positions: {sorted_col_positions}")
+
+        # 2차: 셀 매핑 (start_x → col, end_x → end_col로 colspan 계산)
+        for cell in temp_cells:
+            list_id = cell['id']
+            cell_row = cell['row']
+            cell_col = x_to_col.get(cell['start_x'], 0)
+            end_x = cell['start_x'] + cell['width']
+            end_col = x_to_col.get(end_x, cell_col + 1)
+            colspan = end_col - cell_col
+
+            if list_id not in grid:
+                grid[list_id] = {
+                    'row': cell_row,
+                    'col': cell_col,
+                    'colspan': colspan,
+                    'start_x': cell['start_x'],
+                    'width': cell['width'],
+                    'height': cell['height']
+                }
+                self._log(f"  ({cell_row}, {cell_col}-{end_col}): id={list_id}, colspan={colspan}")
+            else:
+                if list_id not in rowspan_positions:
+                    rowspan_positions[list_id] = []
+                rowspan_positions[list_id].append((cell_row, cell_col))
+                self._log(f"  ({cell_row}, {cell_col}): id={list_id} (rowspan)")
+
+        self._log(f"[map_grid] 완료: {len(grid)}셀, {row+1}행 x {max_col+1}열")
+
+        return {
+            'grid': grid,
+            'rowspan_positions': rowspan_positions,
+            'col_positions': sorted_col_positions,
+            'max_row': row,
+            'max_col': max_col,
+            'xend': xend
+        }
+
     def check_boundary_table(self) -> TableBoundaryResult:
         """
         테이블의 모든 셀을 순회하면서 경계 정보 계산
@@ -329,40 +593,24 @@ class TableBoundary:
         self._log(f"first_rows: {result.first_rows}")
         self._log(f"bottom_rows: {result.bottom_rows}")
 
-        # 3. first_cols 계산: table_origin에서 아래로 내려가면서 수집
-        self.hwp.SetPos(result.table_origin, 0, 0)
-        while True:
-            current_id, _, _ = self.hwp.GetPos()
-            result.first_cols.append(current_id)
-            before_id = current_id
-            self.hwp.MovePos(MOVE_DOWN_OF_CELL, 0, 0)
-            after_id, _, _ = self.hwp.GetPos()
-            if after_id == before_id:
-                break
+        # 3. xend 계산 및 last_cols/first_cols 계산 (xend 기반 우측 순회)
+        xend = self._calc_xend_from_first_rows(result.first_rows)
 
-        # 4. last_cols 계산: first_rows 마지막에서 move_up_right_down 활용
-        first_row_last = result.first_rows[-1] if result.first_rows else result.table_origin
-        result.last_cols.append(first_row_last)  # 첫 행의 마지막 열은 last_col
-
-        current_id = first_row_last
-        while True:
-            down_id, is_last_col = self.move_up_right_down(current_id)
-            # 더 이상 아래로 못 가거나 테이블 밖으로 나감 → 마지막 행
-            if down_id == current_id or down_id == 0:
-                break
-            if is_last_col:
-                result.last_cols.append(down_id)
-            else:
-                # 다른 열로 갔지만 아래로 더 못 가면 마지막 행의 마지막 열
-                self.hwp.SetPos(down_id, 0, 0)
-                self.hwp.HAction.Run("MoveDown")
-                next_id, _, _ = self.hwp.GetPos()
-                if next_id == down_id:  # 마지막 행
-                    result.last_cols.append(down_id)
-            current_id = down_id
-
-        result.first_cols.sort()
-        result.last_cols.sort()
+        if xend > 0 and result.first_rows:
+            xend_result = self._find_lastcols_by_xend(result.first_rows[0], xend)
+            result.first_cols = xend_result['first_cols']
+            result.last_cols = xend_result['last_cols']
+        else:
+            # fallback: table_origin에서 아래로 내려가면서 수집
+            self.hwp.SetPos(result.table_origin, 0, 0)
+            while True:
+                current_id, _, _ = self.hwp.GetPos()
+                result.first_cols.append(current_id)
+                before_id = current_id
+                self.hwp.MovePos(MOVE_DOWN_OF_CELL, 0, 0)
+                after_id, _, _ = self.hwp.GetPos()
+                if after_id == before_id:
+                    break
 
         # table_end = last_cols의 마지막 list_id
         if result.last_cols:
