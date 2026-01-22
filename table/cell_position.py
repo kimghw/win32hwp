@@ -298,13 +298,11 @@ class CellPositionCalculator:
         max_row = max(c.end_row for c in cells.values()) if cells else 0
         max_col = max(c.end_col for c in cells.values()) if cells else 0
 
-        # 4단계: 빈 위치 보완 (인접 셀 커서 이동 기반)
-        cells, max_row, max_col = self._fix_empty_positions(
-            cells, x_levels_list, y_levels_list, max_row, max_col
-        )
-
-        # 5단계: 중복 위치 해결 (커서 이동 기반 인접 관계 확인)
-        cells = self._fix_overlaps(cells, max_row, max_col)
+        # 4단계, 5단계 비활성화 (순수 좌표 기반 매핑이 더 정확함)
+        # cells, max_row, max_col = self._fix_empty_positions(
+        #     cells, x_levels_list, y_levels_list, max_row, max_col
+        # )
+        # cells = self._fix_overlaps(cells, max_row, max_col)
 
         if self.debug:
             print(f"[calculate_grid] 결과: {len(cells)}개 셀, {max_row+1}행 x {max_col+1}열")
