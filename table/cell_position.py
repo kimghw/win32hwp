@@ -223,6 +223,38 @@ class CellPositionCalculator:
 
             cumulative_y = row_end_y
 
+        # 1.5단계: 테이블 경계 좌표 계산 및 필터링
+        # X 경계: first_cols 셀의 좌측(0) ~ last_cols 셀의 우측
+        # Y 경계: first_row의 상단(0) ~ last_row의 하단(cumulative_y)
+        table_min_x = 0
+        table_max_x = 0
+        table_min_y = 0
+        table_max_y = cumulative_y
+
+        # last_cols 셀들의 우측 좌표 중 최대값 계산
+        for last_col_id in last_cols_set:
+            if last_col_id in cell_positions:
+                table_max_x = max(table_max_x, cell_positions[last_col_id]['end_x'])
+
+        if self.debug:
+            print(f"[calculate_grid] 테이블 경계: x=[{table_min_x}~{table_max_x}], y=[{table_min_y}~{table_max_y}]")
+            print(f"[calculate_grid] 필터링 전: x좌표 {len(all_x_coords)}개, y좌표 {len(all_y_coords)}개")
+
+        # X 좌표 필터링: 테이블 경계 내 좌표만 유지
+        all_x_coords = {
+            x for x in all_x_coords
+            if table_min_x - self.TOLERANCE <= x <= table_max_x + self.TOLERANCE
+        }
+
+        # Y 좌표 필터링: 테이블 경계 내 좌표만 유지
+        all_y_coords = {
+            y for y in all_y_coords
+            if table_min_y - self.TOLERANCE <= y <= table_max_y + self.TOLERANCE
+        }
+
+        if self.debug:
+            print(f"[calculate_grid] 필터링 후: x좌표 {len(all_x_coords)}개, y좌표 {len(all_y_coords)}개")
+
         # 2단계: xline, yline 생성 (중복 제거 및 정렬)
         x_levels_list = self._merge_close_levels(list(all_x_coords))
         y_levels_list = self._merge_close_levels(list(all_y_coords))
