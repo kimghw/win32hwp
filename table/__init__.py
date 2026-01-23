@@ -16,3 +16,13 @@ from .table_boundary import (
     TableBoundary,
     TableBoundaryResult,
 )
+from .table_grid import (
+    TableGrid,
+    TableGridResult,
+    GridCell,
+    CellCorner,
+    CellLine,
+    GridLines,
+    ExcelStyleCell,
+    ExcelStyleGrid,
+)  # 셀별 list_id, row, col, corners, lines + 엑셀 스타일 그리드

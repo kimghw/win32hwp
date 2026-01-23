@@ -1,91 +1,156 @@
-# 테이블 경계 추출
+# 테이블 경계 및 그리드 모듈
 
-## 결과 구조
+## 모듈 구조
+
+```
+table/
+├── table_boundary.py    # 테이블 경계 판별
+├── table_grid.py        # 그리드 좌표 생성 및 셀 매핑
+└── table_grid_visual.py # 그리드 시각화 (Pillow)
+```
+
+---
+
+## table_boundary.py
+
+테이블의 4방향 경계 셀과 좌표를 계산합니다.
+
+### TableBoundaryResult
 
 ```python
 @dataclass
 class TableBoundaryResult:
-    # 셀 ID 경계
-    table_origin: int        # 첫 행의 첫 번째 셀
-    table_end: int           # 마지막 행의 가장 오른쪽 셀
-    table_cell_counts: int   # 총 셀 개수
+    table_origin: int           # 첫 번째 셀 list_id
+    table_end: int              # 마지막 셀 list_id
+    table_cell_counts: int      # 총 셀 개수
 
-    # 4방향 경계 셀 리스트
-    first_rows: List[int]    # 첫 번째 행 셀들
-    bottom_rows: List[int]   # 마지막 행 셀들
-    first_cols: List[int]    # 첫 번째 열 셀들
-    last_cols: List[int]     # 마지막 열 셀들
+    top_border_cells: List[int]     # 첫 행 셀들
+    bottom_border_cells: List[int]  # 마지막 행 셀들
+    left_border_cells: List[int]    # 첫 열 셀들
+    right_border_cells: List[int]   # 마지막 열 셀들
 
-    # 좌표 경계 (HWPUNIT)
-    start_x: int = 0         # 테이블 시작 x (항상 0)
-    start_y: int = 0         # 테이블 시작 y (항상 0)
-    end_x: int = 0           # 테이블 끝 x (xend)
-    end_y: int = 0           # 테이블 끝 y (yend)
+    start_x, start_y: int = 0       # 테이블 시작 (항상 0)
+    end_x, end_y: int               # 테이블 끝 (HWPUNIT)
 ```
 
-## 좌표 경계 계산 방식
+### 핵심 메서드
 
-| 변수 | 계산 방식 |
-|------|-----------|
-| `start_x` | 0 (첫 열 시작) |
-| `start_y` | 0 (첫 행 시작) |
-| `end_x` | first_rows 셀들의 width 합 (= xend) |
-| `end_y` | first_cols 따라 내려가며 height 누적 → 마지막 셀 하단 |
+| 메서드 | 설명 |
+|--------|------|
+| `check_boundary_table()` | 경계 분석 실행, TableBoundaryResult 반환 |
+| `check_first_row_cell(list_id)` | 첫 행 여부 (위로 이동 시 테이블 밖이면 True) |
+| `check_bottom_row_cell(list_id)` | 마지막 행 여부 |
 
-```
-(start_x, start_y) = (0, 0)
-         ↓
-         ┌─────────────────────┐
-         │                     │
-         │      테이블         │
-         │                     │
-         └─────────────────────┘
-                               ↑
-                    (end_x, end_y)
-```
+---
 
-## 셀 리스트 계산 방식
+## table_grid.py
 
-| 변수 | 계산 방식 |
-|------|-----------|
-| `table_origin` | 정렬된 list_id 중 첫 번째 |
-| `table_end` | `last_cols[-1]` |
-| `first_rows` | 모든 셀 순회 → `MoveUp` 시 테이블 밖이거나 같은 셀이면 첫 행 |
-| `bottom_rows` | 모든 셀 순회 → `MoveDown` 시 테이블 밖이거나 같은 셀이면 마지막 행 |
-| `first_cols` | 시작 셀 + xend 초과/도달 시 새 행의 첫 셀 |
-| `last_cols` | xend 초과 시 이전 셀, xend 도달 시 현재 셀 |
+셀 좌표(corners)를 계산하고 엑셀 스타일 그리드로 변환합니다.
 
-## first_cols / last_cols 상세
+### 주요 데이터 클래스
 
-```
-xend = 첫 행 너비 합
+| 클래스 | 설명 |
+|--------|------|
+| `GridCell` | 테이블 셀 정보 (list_id, row, col, corners, lines) |
+| `TableGridResult` | build_grid() 결과 (cells 리스트) |
+| `ExcelStyleGrid` | 엑셀 스타일 2D 그리드 (x_lines, y_lines, cells) |
+| `CellGridMapping` | **테이블 셀 ↔ 그리드 셀 매핑 결과** |
 
-우측 순회하면서 너비 누적:
-- 시작: first_cols = [start_cell]
-- xend 초과: 이전 셀 → last_col, 현재 셀 → first_col
-- xend 도달: 현재 셀 → last_col, 다음 셀 → first_col
+### CellGridMapping (최종 출력)
+
+```python
+@dataclass
+class CellGridMapping:
+    list_id: int                      # HWP 셀 식별자
+    table_cell: GridCell              # 원본 셀 정보
+    grid_cells: List[Tuple[int, int]] # 매핑된 그리드 좌표 [(row, col), ...]
+    row_span: Tuple[int, int]         # (start_row, end_row)
+    col_span: Tuple[int, int]         # (start_col, end_col)
 ```
 
-## 핵심 메서드
+### 핵심 메서드
 
-- `check_boundary_table()` - 경계 분석 실행
-- `check_first_row_cell()` / `check_bottom_row_cell()` - 행 경계 판정
-- `_calc_xend_from_first_rows()` - end_x (xend) 계산
-- `_calc_yend_from_first_cols()` - end_y (yend) 계산
-- `_find_lastcols_by_xend()` - first_cols/last_cols 계산
+| 메서드 | 설명 |
+|--------|------|
+| `build_grid(boundary)` | 셀 corners 계산 → TableGridResult |
+| `build_grid_lines(grid, boundary)` | x/y 라인 추출 → ExcelStyleGrid |
+| `map_cells_to_grid(grid, excel_grid, tolerance)` | 셀 매핑 → List[CellGridMapping] |
 
-## 용어
+### tolerance 파라미터
 
-### 경계 셀 리스트 (변수명 매핑)
+`map_cells_to_grid()`의 `tolerance`는 셀 경계 매칭 허용 오차입니다.
 
-| 기존 변수명 | 새 용어 | 설명 |
-|------------|---------|------|
-| `first_rows` | `top_border_cells` | 테이블 외곽 기준 가장 상단 라인 (첫 번째 행 셀들) |
-| `bottom_rows` | `bottom_border_cells` | 테이블 외곽 기준 가장 하단 라인 (마지막 행 셀들) |
-| `first_cols` | `left_border_cells` | 테이블 외곽 기준 가장 좌측 라인 (첫 번째 열 셀들) |
-| `last_cols` | `right_border_cells` | 테이블 외곽 기준 가장 우측 라인 (마지막 열 셀들) |
+| 값 | 효과 |
+|----|------|
+| 큰 값 (30+) | 틀어진 줄도 같은 줄로 인식 (관대) |
+| 작은 값 (5~10) | 정확히 일치하는 줄만 매칭 (엄격) |
 
-### 좌표 관련 용어
+---
 
-- `cell_corners` : 테이블을 구성하는 각 셀의 네 꼭짓점 좌표 집합
-- `cell_lines` : 테이블을 구성하는 각 셀의 모서리 선분들의 집합
+## table_grid_visual.py
+
+그리드 매핑 결과를 이미지로 시각화합니다.
+
+### 사용법
+
+```python
+from table_grid import TableGrid
+from table_grid_visual import visualize_table_grid
+
+grid = TableGrid(hwp)
+boundary = grid._boundary.check_boundary_table()
+result = grid.build_grid(boundary)
+excel_grid = grid.build_grid_lines(result, boundary)
+mappings = grid.map_cells_to_grid(result, excel_grid, tolerance=5)
+
+visualize_table_grid(mappings, excel_grid, "output.jpg")
+```
+
+### 출력
+
+- 각 테이블 셀을 다른 색으로 표시
+- 셀 내부에 list_id 표시
+- 셀 경계는 두꺼운 검은선
+
+---
+
+## 처리 흐름
+
+```
+1. TableBoundary.check_boundary_table()
+   → TableBoundaryResult (경계 셀 리스트, 좌표)
+
+2. TableGrid.build_grid(boundary)
+   → TableGridResult (셀별 corners 좌표)
+
+3. TableGrid.build_grid_lines(grid, boundary)
+   → ExcelStyleGrid (x_lines, y_lines → 2D 그리드)
+
+4. TableGrid.map_cells_to_grid(grid, excel_grid, tolerance)
+   → List[CellGridMapping] (list_id ↔ 그리드 좌표 매핑)
+```
+
+---
+
+## 좌표 계산 방식
+
+### xend (테이블 가로 크기)
+- `top_border_cells` 셀들의 width 합
+
+### yend (테이블 세로 크기)
+- `left_border_cells` 셀들의 height 합
+
+### 셀 corners
+- 테이블 원점(0,0)에서 우측으로 이동하며 너비 누적
+- `right_border_cells` 도달 시 행 변경, y 좌표 누적
+
+---
+
+## 용어 매핑
+
+| 변수명 | 의미 |
+|--------|------|
+| `top_border_cells` | 테이블 상단 경계 (첫 행 셀들) |
+| `bottom_border_cells` | 테이블 하단 경계 (마지막 행 셀들) |
+| `left_border_cells` | 테이블 좌측 경계 (첫 열 셀들) |
+| `right_border_cells` | 테이블 우측 경계 (마지막 열 셀들) |

@@ -349,6 +349,25 @@ ws.column_dimensions['A'].width = col_width_hwp / 700
 
 ---
 
+## 테이블 그리드 매핑
+
+### tolerance 파라미터
+
+`map_cells_to_grid()` 함수의 `tolerance` 파라미터는 셀 경계선 매칭 시 허용 오차를 설정합니다.
+
+```python
+mappings = grid.map_cells_to_grid(result, excel_grid, tolerance=5)
+```
+
+| tolerance 값 | 효과 |
+|-------------|------|
+| 큰 값 (30+) | 약간 틀어진 줄도 같은 줄로 인식 (관대한 매칭) |
+| 작은 값 (5~10) | 정확히 일치하는 줄만 매칭 (엄격한 필터링) |
+
+**용도:** 한글 문서의 테이블에서 미세하게 어긋난 셀 경계선이 있을 때, tolerance 값을 조정하여 그리드 매핑 정확도를 개선할 수 있습니다.
+
+---
+
 ## Git 규칙
 
 **사용자가 명시적으로 요청한 경우에만** git 명령어를 실행합니다.
