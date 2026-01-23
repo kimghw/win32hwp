@@ -76,9 +76,16 @@ xend = 첫 행 너비 합
 
 ## 용어
 
+### 경계 셀 리스트 (변수명 매핑)
+
+| 기존 변수명 | 새 용어 | 설명 |
+|------------|---------|------|
+| `first_rows` | `top_border_line` | 테이블 외곽 기준 가장 상단 라인 (첫 번째 행 셀들) |
+| `bottom_rows` | `bottom_border_line` | 테이블 외곽 기준 가장 하단 라인 (마지막 행 셀들) |
+| `first_cols` | `left_border_line` | 테이블 외곽 기준 가장 좌측 라인 (첫 번째 열 셀들) |
+| `last_cols` | `right_border_line` | 테이블 외곽 기준 가장 우측 라인 (마지막 열 셀들) |
+
+### 좌표 관련 용어
+
 - `cell_corners` : 테이블을 구성하는 각 셀의 네 꼭짓점 좌표 집합
-- `cell_lines`   : 테이블을 구성하는 각 셀의 모서리 선분들의 집합
-- `right_border_line`  : 테이블 외곽 기준 가장 우측 라인
-- `left_border_line `  : 테이블 외곽 기준 가장 좌측 라인
-- `top_border_line  `  : 테이블 외곽 기준 가장 상단 라인
-- `bottom_border_line` : 테이블 외곽 기준 가장 하단 라인
+- `cell_lines` : 테이블을 구성하는 각 셀의 모서리 선분들의 집합

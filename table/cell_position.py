@@ -127,15 +127,15 @@ class CellPositionCalculator:
         if not table_info.is_in_table():
             raise ValueError("커서가 테이블 내부에 있지 않습니다.")
 
-        # 경계 분석으로 first_cols, last_cols 획득
+        # 경계 분석으로 left_border_line, right_border_line 획득
         boundary_result = boundary.check_boundary_table()
-        first_cols = boundary._sort_first_cols_by_position(boundary_result.first_cols)
-        last_cols_set = set(boundary_result.last_cols)
-        first_cols_set = set(first_cols)
+        left_border_line = boundary._sort_left_border_line_by_position(boundary_result.left_border_line)
+        right_border_line_set = set(boundary_result.right_border_line)
+        left_border_line_set = set(left_border_line)
 
         if self.debug:
-            print(f"[calculate_grid] first_cols: {first_cols}")
-            print(f"[calculate_grid] last_cols: {list(last_cols_set)}")
+            print(f"[calculate_grid] left_border_line: {left_border_line}")
+            print(f"[calculate_grid] right_border_line: {list(right_border_line_set)}")
 
         # 1단계: 모든 셀의 물리적 좌표 수집
         cell_positions = {}  # list_id -> {start_x, end_x, start_y, end_y}
@@ -145,7 +145,7 @@ class CellPositionCalculator:
         cumulative_y = 0
         total_cells = 0
 
-        for row_idx, row_start in enumerate(first_cols):
+        for row_idx, row_start in enumerate(left_border_line):
             if total_cells >= max_cells:
                 if self.debug:
                     print(f"[경고] 최대 셀 수({max_cells}) 도달, 중단")
@@ -205,7 +205,7 @@ class CellPositionCalculator:
 
                 if (right_id != current_id and
                     right_id not in visited_in_row and
-                    right_id not in first_cols_set):
+                    right_id not in left_border_line_set):
                     visited_in_row.add(right_id)
                     queue.append((right_id, end_x, start_y))
 
@@ -217,22 +217,22 @@ class CellPositionCalculator:
 
                     if (down_id != current_id and
                         down_id not in visited_in_row and
-                        down_id not in first_cols_set):
+                        down_id not in left_border_line_set):
                         visited_in_row.add(down_id)
                         queue.append((down_id, start_x, end_y))
 
             cumulative_y = row_end_y
 
         # 1.5단계: 테이블 경계 좌표 계산 및 필터링
-        # X 경계: first_cols 셀의 좌측(0) ~ last_cols 셀의 우측
-        # Y 경계: first_row의 상단(0) ~ last_row의 하단(cumulative_y)
+        # X 경계: left_border_line 셀의 좌측(0) ~ right_border_line 셀의 우측
+        # Y 경계: top_border_line의 상단(0) ~ bottom_border_line의 하단(cumulative_y)
         table_min_x = 0
         table_max_x = 0
         table_min_y = 0
         table_max_y = cumulative_y
 
-        # last_cols 셀들의 우측 좌표 중 최대값 계산
-        for last_col_id in last_cols_set:
+        # right_border_line 셀들의 우측 좌표 중 최대값 계산
+        for last_col_id in right_border_line_set:
             if last_col_id in cell_positions:
                 table_max_x = max(table_max_x, cell_positions[last_col_id]['end_x'])
 
@@ -298,412 +298,8 @@ class CellPositionCalculator:
         max_row = max(c.end_row for c in cells.values()) if cells else 0
         max_col = max(c.end_col for c in cells.values()) if cells else 0
 
-        # 4단계, 5단계 비활성화 (순수 좌표 기반 매핑이 더 정확함)
-        # cells, max_row, max_col = self._fix_empty_positions(
-        #     cells, x_levels_list, y_levels_list, max_row, max_col
-        # )
-        # cells = self._fix_overlaps(cells, max_row, max_col)
-
         if self.debug:
             print(f"[calculate_grid] 결과: {len(cells)}개 셀, {max_row+1}행 x {max_col+1}열")
-
-        return CellPositionResult(
-            cells=cells,
-            x_levels=x_levels_list,
-            y_levels=y_levels_list,
-            max_row=max_row,
-            max_col=max_col,
-        )
-
-    def _fix_empty_positions(
-        self,
-        cells: Dict[int, CellRange],
-        x_levels: List[int],
-        y_levels: List[int],
-        max_row: int,
-        max_col: int
-    ) -> tuple:
-        """
-        빈 위치를 인접 셀 커서 이동으로 보완
-
-        알고리즘:
-        1. 그리드 점유 맵 생성
-        2. 빈 위치 찾기
-        3. 빈 위치에서 인접 셀 기반 커서 이동으로 실제 셀 찾기
-        4. 찾은 셀의 start_row를 빈 위치로 확장
-        """
-        from table.table_info import MOVE_RIGHT_OF_CELL, MOVE_LEFT_OF_CELL, MOVE_UP_OF_CELL, MOVE_DOWN_OF_CELL
-
-        # 그리드 점유 맵 생성
-        grid = {}  # (row, col) -> list_id
-        for list_id, cell in cells.items():
-            for r in range(cell.start_row, cell.end_row + 1):
-                for c in range(cell.start_col, cell.end_col + 1):
-                    grid[(r, c)] = list_id
-
-        # 빈 위치 찾기
-        empty_positions = []
-        for r in range(max_row + 1):
-            for c in range(max_col + 1):
-                if (r, c) not in grid:
-                    empty_positions.append((r, c))
-
-        if not empty_positions:
-            return cells, max_row, max_col
-
-        if self.debug:
-            print(f"[_fix_empty_positions] 빈 위치 {len(empty_positions)}개: {empty_positions}")
-
-        # 빈 위치별로 실제 셀 찾기
-        fixed_cells = {}  # list_id -> 확장할 row 범위
-
-        for empty_row, empty_col in empty_positions:
-            # 인접 셀 찾기
-            adjacent_cells = []
-
-            # 왼쪽 인접 셀
-            for c in range(empty_col - 1, -1, -1):
-                if (empty_row, c) in grid:
-                    adjacent_cells.append(('left', grid[(empty_row, c)]))
-                    break
-
-            # 오른쪽 인접 셀
-            for c in range(empty_col + 1, max_col + 1):
-                if (empty_row, c) in grid:
-                    adjacent_cells.append(('right', grid[(empty_row, c)]))
-                    break
-
-            # 위쪽 인접 셀
-            for r in range(empty_row - 1, -1, -1):
-                if (r, empty_col) in grid:
-                    adjacent_cells.append(('up', grid[(r, empty_col)]))
-                    break
-
-            # 아래쪽 인접 셀
-            for r in range(empty_row + 1, max_row + 1):
-                if (r, empty_col) in grid:
-                    adjacent_cells.append(('down', grid[(r, empty_col)]))
-                    break
-
-            if not adjacent_cells:
-                continue
-
-            # 인접 셀에서 커서 이동으로 빈 위치의 실제 셀 찾기
-            found_cell_id = None
-            move_map = {
-                'left': MOVE_RIGHT_OF_CELL,
-                'right': MOVE_LEFT_OF_CELL,
-                'up': MOVE_DOWN_OF_CELL,
-                'down': MOVE_UP_OF_CELL,
-            }
-
-            for direction, adj_id in adjacent_cells:
-                self.hwp.SetPos(adj_id, 0, 0)
-                self.hwp.MovePos(move_map[direction], 0, 0)
-                target_id = self.hwp.GetPos()[0]
-
-                if target_id != adj_id and target_id in cells:
-                    found_cell_id = target_id
-                    break
-
-            if found_cell_id:
-                # 찾은 셀의 row 범위 확장
-                if found_cell_id not in fixed_cells:
-                    fixed_cells[found_cell_id] = {
-                        'min_row': empty_row,
-                        'max_row': empty_row,
-                        'cols': {empty_col}
-                    }
-                else:
-                    fixed_cells[found_cell_id]['min_row'] = min(
-                        fixed_cells[found_cell_id]['min_row'], empty_row
-                    )
-                    fixed_cells[found_cell_id]['max_row'] = max(
-                        fixed_cells[found_cell_id]['max_row'], empty_row
-                    )
-                    fixed_cells[found_cell_id]['cols'].add(empty_col)
-
-        # 셀 범위 확장 적용
-        for list_id, fix_info in fixed_cells.items():
-            cell = cells[list_id]
-            new_start_row = min(cell.start_row, fix_info['min_row'])
-            new_end_row = max(cell.end_row, fix_info['max_row'])
-
-            if new_start_row != cell.start_row or new_end_row != cell.end_row:
-                if self.debug:
-                    print(f"[_fix_empty_positions] 셀 {list_id} 확장: "
-                          f"row {cell.start_row}~{cell.end_row} → {new_start_row}~{new_end_row}")
-
-                cells[list_id] = CellRange(
-                    list_id=list_id,
-                    start_row=new_start_row,
-                    start_col=cell.start_col,
-                    end_row=new_end_row,
-                    end_col=cell.end_col,
-                    rowspan=new_end_row - new_start_row + 1,
-                    colspan=cell.colspan,
-                    start_x=cell.start_x,
-                    start_y=cell.start_y,
-                    end_x=cell.end_x,
-                    end_y=cell.end_y,
-                )
-
-        # max_row/max_col 재계산
-        if cells:
-            max_row = max(c.end_row for c in cells.values())
-            max_col = max(c.end_col for c in cells.values())
-
-        return cells, max_row, max_col
-
-    def _fix_overlaps(
-        self,
-        cells: Dict[int, CellRange],
-        max_row: int,
-        max_col: int
-    ) -> Dict[int, CellRange]:
-        """
-        중복 위치 해결 (커서 이동 기반 인접 관계 확인)
-
-        알고리즘:
-        1. 중복 위치 찾기
-        2. 중복된 셀 쌍에 대해 커서 이동으로 인접 관계 확인
-        3. 위아래 인접이면, 위 셀의 end_row를 아래 셀의 start_row - 1로 조정
-        """
-        from table.table_info import MOVE_DOWN_OF_CELL, MOVE_UP_OF_CELL
-
-        # 그리드에서 중복 찾기
-        grid = {}  # (row, col) -> [list_ids]
-        for list_id, cell in cells.items():
-            for r in range(cell.start_row, cell.end_row + 1):
-                for c in range(cell.start_col, cell.end_col + 1):
-                    key = (r, c)
-                    if key not in grid:
-                        grid[key] = []
-                    grid[key].append(list_id)
-
-        # 중복 위치 찾기
-        overlaps = {k: v for k, v in grid.items() if len(v) > 1}
-
-        if not overlaps:
-            return cells
-
-        if self.debug:
-            print(f"[_fix_overlaps] 중복 위치 {len(overlaps)}개 발견")
-
-        # 중복 셀 쌍 수집
-        overlap_pairs = set()
-        for pos, ids in overlaps.items():
-            if len(ids) == 2:
-                overlap_pairs.add(tuple(sorted(ids)))
-
-        # 각 쌍에 대해 인접 관계 확인 및 조정
-        for id1, id2 in overlap_pairs:
-            cell1 = cells[id1]
-            cell2 = cells[id2]
-
-            # 커서 이동으로 인접 관계 확인
-            # id1 → 아래 → id2 이면 id1이 위에 있음
-            self.hwp.SetPos(id1, 0, 0)
-            self.hwp.MovePos(MOVE_DOWN_OF_CELL, 0, 0)
-            down_of_1 = self.hwp.GetPos()[0]
-
-            self.hwp.SetPos(id2, 0, 0)
-            self.hwp.MovePos(MOVE_UP_OF_CELL, 0, 0)
-            up_of_2 = self.hwp.GetPos()[0]
-
-            if down_of_1 == id2 and up_of_2 == id1:
-                # id1이 위, id2가 아래로 인접
-                # id1의 end_row를 id2의 start_row - 1로 조정
-                new_end_row = cell2.start_row - 1
-
-                if new_end_row >= cell1.start_row:
-                    if self.debug:
-                        print(f"[_fix_overlaps] 셀 {id1} end_row 조정: "
-                              f"{cell1.end_row} → {new_end_row}")
-
-                    cells[id1] = CellRange(
-                        list_id=id1,
-                        start_row=cell1.start_row,
-                        start_col=cell1.start_col,
-                        end_row=new_end_row,
-                        end_col=cell1.end_col,
-                        rowspan=new_end_row - cell1.start_row + 1,
-                        colspan=cell1.colspan,
-                        start_x=cell1.start_x,
-                        start_y=cell1.start_y,
-                        end_x=cell1.end_x,
-                        end_y=cell1.end_y,
-                    )
-            elif down_of_1 == id1 and up_of_2 == id2:
-                # 반대로 id2가 위, id1이 아래
-                new_end_row = cell1.start_row - 1
-
-                if new_end_row >= cell2.start_row:
-                    if self.debug:
-                        print(f"[_fix_overlaps] 셀 {id2} end_row 조정: "
-                              f"{cell2.end_row} → {new_end_row}")
-
-                    cells[id2] = CellRange(
-                        list_id=id2,
-                        start_row=cell2.start_row,
-                        start_col=cell2.start_col,
-                        end_row=new_end_row,
-                        end_col=cell2.end_col,
-                        rowspan=new_end_row - cell2.start_row + 1,
-                        colspan=cell2.colspan,
-                        start_x=cell2.start_x,
-                        start_y=cell2.start_y,
-                        end_x=cell2.end_x,
-                        end_y=cell2.end_y,
-                    )
-
-        return cells
-
-    def _calculate_bfs(self, max_cells: int = 1000) -> CellPositionResult:
-        """
-        [DEPRECATED] BFS 방식으로 테이블의 모든 셀 위치 및 범위 계산
-
-        주의: 이 메서드는 더 이상 사용되지 않습니다.
-        calculate_grid() 또는 calculate()를 사용하세요.
-
-        문제점:
-        - 순회 방향에 따라 좌표 계산이 부정확할 수 있음
-        - 복잡한 병합 셀 구조에서 좌표 오류 발생
-        """
-        from table.table_info import (
-            MOVE_RIGHT_OF_CELL, MOVE_DOWN_OF_CELL,
-            MOVE_LEFT_OF_CELL, MOVE_UP_OF_CELL,
-            MOVE_START_OF_CELL, MOVE_TOP_OF_CELL
-        )
-        from collections import deque
-
-        table_info = self._get_table_info()
-
-        if not table_info.is_in_table():
-            raise ValueError("커서가 테이블 내부에 있지 않습니다.")
-
-        # 첫 번째 셀로 이동
-        table_info.move_to_first_cell()
-        first_id = self.hwp.GetPos()[0]
-
-        # 데이터 구조
-        cell_positions = {}  # list_id -> {start_x, end_x, start_y, end_y}
-        x_levels = {0}
-        y_levels = {0}
-        visited = set()
-
-        # BFS 큐: (list_id, start_x, start_y, from_direction)
-        # from_direction: 어느 방향에서 왔는지 ('right', 'down', 'left', 'up', 'start')
-        queue = deque([(first_id, 0, 0, 'start')])
-        visited.add(first_id)
-
-        # 첫 셀 크기 구하기
-        self.hwp.SetPos(first_id, 0, 0)
-        first_width, first_height = table_info.get_cell_dimensions()
-
-        cell_positions[first_id] = {
-            'start_x': 0, 'end_x': first_width,
-            'start_y': 0, 'end_y': first_height,
-        }
-        x_levels.add(0)
-        y_levels.add(0)
-
-        total_cells = 1
-
-        while queue and total_cells < max_cells:
-            current_id, cur_start_x, cur_start_y, from_dir = queue.popleft()
-
-            # 현재 셀 정보
-            cur_pos = cell_positions.get(current_id)
-            if not cur_pos:
-                continue
-
-            cur_end_x = cur_pos['end_x']
-            cur_end_y = cur_pos['end_y']
-            cur_width = cur_end_x - cur_start_x
-            cur_height = cur_end_y - cur_start_y
-
-            # 3방향 탐색 (좌측 제외 - 우측 이동으로만 X 매핑)
-            directions = [
-                (MOVE_RIGHT_OF_CELL, 'right'),
-                (MOVE_DOWN_OF_CELL, 'down'),
-                (MOVE_UP_OF_CELL, 'up'),
-            ]
-
-            for move_cmd, direction in directions:
-                self.hwp.SetPos(current_id, 0, 0)
-                self.hwp.MovePos(move_cmd, 0, 0)
-                next_id = self.hwp.GetPos()[0]
-
-                if next_id == current_id or next_id in visited:
-                    continue
-
-                visited.add(next_id)
-                total_cells += 1
-
-                # 다음 셀 크기
-                self.hwp.SetPos(next_id, 0, 0)
-                next_width, next_height = table_info.get_cell_dimensions()
-
-                # 좌표 계산 - 우측 이동 시에만 X 누적
-                if direction == 'right':
-                    # 우측 이동: X 누적
-                    next_start_x = cur_end_x
-                    next_start_y = cur_start_y
-                elif direction == 'down':
-                    # 아래 이동: Y 누적, X는 현재 셀과 동일
-                    next_start_x = cur_start_x
-                    next_start_y = cur_end_y
-                elif direction == 'up':
-                    # 위 이동: Y는 현재 - 이전 셀 높이
-                    next_start_x = cur_start_x
-                    next_start_y = cur_start_y - next_height
-
-                next_end_x = next_start_x + next_width
-                next_end_y = next_start_y + next_height
-
-                cell_positions[next_id] = {
-                    'start_x': next_start_x, 'end_x': next_end_x,
-                    'start_y': next_start_y, 'end_y': next_end_y,
-                }
-
-                x_levels.add(next_start_x)
-                y_levels.add(next_start_y)
-
-                if self.debug:
-                    print(f"[BFS] {current_id} --{direction}--> {next_id}: "
-                          f"({next_start_x}, {next_start_y})")
-
-                queue.append((next_id, next_start_x, next_start_y, direction))
-
-        # 레벨 병합
-        x_levels_list = self._merge_close_levels(list(x_levels))
-        y_levels_list = self._merge_close_levels(list(y_levels))
-
-        # 셀 범위 계산
-        cells = {}
-        for list_id, pos in cell_positions.items():
-            start_row = self._find_level_index(pos['start_y'], y_levels_list)
-            start_col = self._find_level_index(pos['start_x'], x_levels_list)
-            end_row = self._find_end_level_index(pos['end_y'], y_levels_list)
-            end_col = self._find_end_level_index(pos['end_x'], x_levels_list)
-
-            cells[list_id] = CellRange(
-                list_id=list_id,
-                start_row=start_row,
-                start_col=start_col,
-                end_row=end_row,
-                end_col=end_col,
-                rowspan=end_row - start_row + 1,
-                colspan=end_col - start_col + 1,
-                start_x=pos['start_x'],
-                start_y=pos['start_y'],
-                end_x=pos['end_x'],
-                end_y=pos['end_y'],
-            )
-
-        max_row = max(c.end_row for c in cells.values()) if cells else 0
-        max_col = max(c.end_col for c in cells.values()) if cells else 0
 
         return CellPositionResult(
             cells=cells,
@@ -727,172 +323,6 @@ class CellPositionCalculator:
             CellPositionResult: 셀 위치 계산 결과
         """
         return self.calculate_grid(max_cells)
-
-    def _calculate_legacy(self, max_cells: int = 1000) -> CellPositionResult:
-        """
-        [DEPRECATED] 레거시 셀 위치 계산 (first_cols 기반)
-
-        calculate_grid() 사용을 권장합니다.
-        """
-        from table.table_info import MOVE_RIGHT_OF_CELL, MOVE_DOWN_OF_CELL
-
-        boundary = self._get_boundary()
-        table_info = self._get_table_info()
-
-        if not boundary._is_in_table():
-            raise ValueError("커서가 테이블 내부에 있지 않습니다.")
-
-        # 경계 분석
-        result = boundary.check_boundary_table()
-        first_cols = boundary._sort_first_cols_by_position(result.first_cols)
-        last_cols_set = set(result.last_cols)
-        first_cols_set = set(first_cols)
-
-        # X, Y 레벨 수집
-        x_levels = {0}
-        y_levels = {0}
-        cell_positions = {}
-
-        def collect_split_cells(cell_id, start_x, start_y, row_end_y, visited):
-            """분할된 셀 재귀 순회"""
-            self.hwp.SetPos(cell_id, 0, 0)
-            width, height = table_info.get_cell_dimensions()
-            end_x = start_x + width
-            end_y = start_y + height
-
-            x_levels.add(start_x)
-            y_levels.add(start_y)
-
-            if cell_id not in cell_positions:
-                cell_positions[cell_id] = {
-                    'start_x': start_x, 'end_x': end_x,
-                    'start_y': start_y, 'end_y': end_y,
-                }
-
-            # 오른쪽 순회
-            self.hwp.SetPos(cell_id, 0, 0)
-            self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
-            right_id, _, _ = self.hwp.GetPos()
-            if right_id != cell_id and right_id not in visited and right_id not in first_cols_set:
-                visited.add(right_id)
-                collect_split_cells(right_id, end_x, start_y, row_end_y, visited)
-
-            # 아래 순회
-            if end_y < row_end_y:
-                self.hwp.SetPos(cell_id, 0, 0)
-                self.hwp.MovePos(MOVE_DOWN_OF_CELL, 0, 0)
-                down_id, _, _ = self.hwp.GetPos()
-                if down_id != cell_id and down_id not in visited and down_id not in first_cols_set:
-                    visited.add(down_id)
-                    collect_split_cells(down_id, start_x, end_y, row_end_y, visited)
-
-        # 모든 셀 순회
-        cumulative_y = 0
-        total_cells = 0
-        for row_start in first_cols:
-            if total_cells >= max_cells:
-                if self.debug:
-                    print(f"[경고] 최대 셀 수({max_cells}) 도달, 중단")
-                break
-
-            self.hwp.SetPos(row_start, 0, 0)
-            _, row_height = table_info.get_cell_dimensions()
-
-            row_start_y = cumulative_y
-            row_end_y = cumulative_y + row_height
-            y_levels.add(row_end_y)
-
-            cumulative_x = 0
-            current_id = row_start
-            visited = set()
-
-            while True:
-                if total_cells >= max_cells:
-                    break
-                if current_id in visited:
-                    break
-                visited.add(current_id)
-                total_cells += 1
-
-                self.hwp.SetPos(current_id, 0, 0)
-                width, height = table_info.get_cell_dimensions()
-
-                start_x = cumulative_x
-                end_x = cumulative_x + width
-                start_y = row_start_y
-                end_y = row_start_y + height
-
-                x_levels.add(start_x)
-                y_levels.add(start_y)
-
-                cell_positions[current_id] = {
-                    'start_x': start_x, 'end_x': end_x,
-                    'start_y': start_y, 'end_y': end_y,
-                }
-
-                # 분할 셀 처리
-                if height < row_height:
-                    self.hwp.SetPos(current_id, 0, 0)
-                    self.hwp.MovePos(MOVE_DOWN_OF_CELL, 0, 0)
-                    next_sub, _, _ = self.hwp.GetPos()
-                    if next_sub != current_id and next_sub not in visited and next_sub not in first_cols_set:
-                        visited.add(next_sub)
-                        collect_split_cells(next_sub, start_x, end_y, row_end_y, visited)
-
-                cumulative_x = end_x
-
-                if current_id in last_cols_set:
-                    break
-
-                self.hwp.SetPos(current_id, 0, 0)
-                self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
-                next_id, _, _ = self.hwp.GetPos()
-
-                if next_id == current_id:
-                    break
-                if next_id in first_cols_set and next_id != row_start:
-                    break
-
-                current_id = next_id
-
-            cumulative_y = row_end_y
-
-        # 레벨 병합
-        x_levels_list = self._merge_close_levels(list(x_levels))
-        y_levels_list = self._merge_close_levels(list(y_levels))
-
-        # 셀 범위 계산
-        cells = {}
-        for list_id, pos in cell_positions.items():
-            start_row = self._find_level_index(pos['start_y'], y_levels_list)
-            start_col = self._find_level_index(pos['start_x'], x_levels_list)
-            end_row = self._find_end_level_index(pos['end_y'], y_levels_list)
-            end_col = self._find_end_level_index(pos['end_x'], x_levels_list)
-
-            cells[list_id] = CellRange(
-                list_id=list_id,
-                start_row=start_row,
-                start_col=start_col,
-                end_row=end_row,
-                end_col=end_col,
-                rowspan=end_row - start_row + 1,
-                colspan=end_col - start_col + 1,
-                start_x=pos['start_x'],
-                start_y=pos['start_y'],
-                end_x=pos['end_x'],
-                end_y=pos['end_y'],
-            )
-
-        max_row = max(c.end_row for c in cells.values()) if cells else 0
-        max_col = max(c.end_col for c in cells.values()) if cells else 0
-
-        return CellPositionResult(
-            cells=cells,
-            x_levels=x_levels_list,
-            y_levels=y_levels_list,
-            max_row=max_row,
-            max_col=max_col,
-        )
 
     def get_cell_at(self, result: CellPositionResult, row: int, col: int) -> Optional[CellRange]:
         """특정 좌표에 있는 셀 반환"""
@@ -1006,30 +436,3 @@ class CellPositionCalculator:
             print(f"\n=== 병합 셀 ({len(merged)}개) ===")
             for cell in sorted(merged, key=lambda c: (c.start_row, c.start_col)):
                 print(f"  list_id={cell.list_id}: {cell}")
-
-
-# 직접 실행 시
-if __name__ == "__main__":
-    import sys
-    import os
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-    from cursor import get_hwp_instance
-
-    hwp = get_hwp_instance()
-    if not hwp:
-        print("[오류] 한글이 실행 중이지 않습니다.")
-        exit(1)
-
-    calc = CellPositionCalculator(hwp)
-
-    try:
-        result = calc.calculate()
-        calc.print_summary(result)
-
-        print(f"\n=== 모든 셀 ===")
-        for list_id, cell in sorted(result.cells.items()):
-            print(f"  list_id={list_id}: {cell}")
-
-    except ValueError as e:
-        print(f"[오류] {e}")

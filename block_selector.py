@@ -13,7 +13,6 @@
 """
 
 import win32com.client as win32
-from cursor import get_sentences, get_line_range
 
 
 class BlockSelector:
@@ -352,37 +351,3 @@ class BlockSelector:
         if text:
             return text.replace('\r\n', '').replace('\r', '').replace('\n', '')
         return ""
-
-
-if __name__ == "__main__":
-    print("=" * 50)
-    print("BlockSelector - 한글(HWP) 블록 선택 유틸리티")
-    print("=" * 50)
-    print()
-    print("사용법:")
-    print("-" * 50)
-    print("from block_selector import BlockSelector")
-    print()
-    print("# hwp 인스턴스 생성 또는 연결 후")
-    print("selector = BlockSelector(hwp)")
-    print("pos = hwp.GetPos()")
-    print("para_id = pos[1]")
-    print()
-    print("주요 메서드:")
-    print("-" * 50)
-    print("  select_para(para_id)                    - 문단 전체 선택")
-    print("  select_line_by_index(para_id, n)        - n번째 줄 선택 (0부터)")
-    print("  select_line_by_pos(para_id, pos)        - pos가 속한 줄 선택")
-    print("  select_lines_range(para_id, n, m)       - n~m번째 줄 선택")
-    print("  select_sentence(para_id, n)             - n번째 문장 선택 (1부터)")
-    print("  select_sentences_range(para_id, n, m)   - n~m번째 문장 선택")
-    print("  select_sentence_in_line(para_id, pos)   - pos가 속한 줄 내 문장 선택")
-    print("  cancel()                                - 블록 선택 해제")
-    print("  get_selected_text()                     - 선택된 텍스트 반환")
-    print()
-    print("예시:")
-    print("-" * 50)
-    print("selector.select_sentence(para_id, 1)  # 첫 번째 문장 선택")
-    print("text = selector.get_selected_text()")
-    print("selector.cancel()")
-    print()

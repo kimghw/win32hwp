@@ -569,32 +569,3 @@ def markdown_to_hwp_in_table(markdown_text, table_index=0, row=0, col=0):
 
     print(f"테이블 #{table_index} 셀({row},{col})에 {len(lines)}줄 삽입 완료 (이미지 {picture_count}개)")
     return True
-
-
-# 테스트
-if __name__ == "__main__":
-    # 테스트 마크다운
-    test_markdown = """
-# (배경) 자율운항선박이 실질적으로 운용되기 위해서는 육상과 연계되는 기술이 필수적으로 요구됨
-## 우리나라에서 개발한 자율운항선박이 육상과 연계하여 실질적으로 상용화될 수 있도록 하기 위해 본 사업 추진
-### 자율운항선박을 육상에서 관제하기 위한 기술
-### 자율운항선박 육상제어사에 대한 면허체계
-## 본 사업의 목표
-### 단기 목표
-### 장기 목표
-"""
-
-    print("=== 마크다운 → 한글 문서 형식 변환 테스트 ===\n")
-    print("[입력 마크다운]")
-    print(test_markdown)
-    print("\n[변환 결과]")
-    result = markdown_to_hwp_text(test_markdown)
-    print(result)
-
-    print("\n" + "="*50)
-    print("\n한글 문서에 삽입하려면:")
-    print("  from md_to_hwp import markdown_to_hwp")
-    print("  markdown_to_hwp(마크다운텍스트)")
-    print("\n테이블 셀에 삽입하려면:")
-    print("  from md_to_hwp import markdown_to_hwp_in_table")
-    print("  markdown_to_hwp_in_table(마크다운텍스트, table_index=0, row=0, col=0)")

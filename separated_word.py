@@ -24,15 +24,6 @@ from typing import Dict, List, Optional, Tuple
 from block_selector import BlockSelector
 from cursor import get_hwp_instance
 
-# 모듈 실행 정보 로그
-_MODULE_INFO = {
-    'file': os.path.abspath(__file__),
-    'name': __name__,
-    'loaded_at': datetime.now().isoformat()
-}
-print(f"[MODULE LOAD] {_MODULE_INFO['file']}")
-print(f"[MODULE LOAD] __name__={_MODULE_INFO['name']}, loaded_at={_MODULE_INFO['loaded_at']}")
-
 
 class SeparatedWord:
     """분리된 단어 처리 클래스"""
@@ -899,69 +890,3 @@ class SeparatedWord:
                 'message': f"오류 발생: {e}",
                 'log': self.log_messages
             }
-
-
-def main():
-    """독립 실행 함수"""
-    print("=" * 60)
-    print("분리된 단어 처리 도구")
-    print("=" * 60)
-    print("")
-    print("기능 설명:")
-    print("  - 한 단어가 두 줄에 걸쳐 분리된 경우를 자동으로 감지")
-    print("  - 이전 줄의 자간을 줄여서 분리된 부분을 한 줄로 합침")
-    print("  - 예: '문' + '서작성' -> '문서작성' (한 줄로)")
-    print("")
-    print("-" * 60)
-
-    # HWP 인스턴스 연결
-    print("[INFO] 실행 중인 한글을 검색합니다...")
-    hwp = get_hwp_instance()
-    if not hwp:
-        print("[ERROR] 실행 중인 한글을 찾을 수 없습니다.")
-        print("        한글을 먼저 실행하고 문서를 열어주세요.")
-        return
-
-    print("[OK] 한글에 연결되었습니다.")
-    print("")
-
-    # SeparatedWord 객체 생성
-    sw = SeparatedWord(hwp, debug=True)
-
-    # 현재 문단 처리
-    print("[RUN] 현재 문단의 분리된 단어를 처리합니다...")
-    print("")
-    result = sw.fix_paragraph()
-
-    # 결과 출력
-    print("")
-    print("=" * 60)
-    print("처리 결과")
-    print("=" * 60)
-    print(f"성공 여부: {'성공' if result['success'] else '일부 실패'}")
-    print(f"조정된 줄 수: {result['adjusted_lines']}")
-    print(f"건너뛴 줄 수: {result['skipped_lines']}")
-    print(f"실패한 줄 수: {result['failed_lines']}")
-    print(f"전체 줄 수: {result['total_lines']}")
-    print(f"메시지: {result['message']}")
-
-    # 로그 저장
-    try:
-        # JSON 로그 저장
-        json_path = sw.save_debug_log(result)
-        print(f"\n[LOG] JSON 로그 저장: {json_path}")
-
-        # 텍스트 로그 저장
-        text_path = sw.save_text_log(result)
-        print(f"[LOG] 텍스트 로그 저장: {text_path}")
-    except Exception as e:
-        print(f"[WARN] 로그 저장 실패: {e}")
-
-    print("")
-    print("=" * 60)
-    print("완료")
-    print("=" * 60)
-
-
-if __name__ == '__main__':
-    main()

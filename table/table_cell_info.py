@@ -16,59 +16,6 @@ except ImportError:
     from table_info import MOVE_RIGHT_OF_CELL, MOVE_DOWN_OF_CELL
 
 
-def iterate_table_cells(hwp, callback):
-    """
-    테이블 셀을 순회하며 callback 함수 호출
-
-    Args:
-        hwp: HWP 인스턴스
-        callback: func(hwp, row, col, list_id) -> bool
-                  False 반환 시 순회 중단
-
-    Returns:
-        set: 방문한 list_id 집합
-    """
-    visited = set()
-    row = 0
-
-    while True:
-        row_start_pos = hwp.GetPos()
-        col = 0
-
-        # 현재 행 순회
-        while True:
-            pos = hwp.GetPos()
-            list_id = pos[0]
-
-            if list_id not in visited:
-                visited.add(list_id)
-
-                # 콜백 호출
-                if callback(hwp, row, col, list_id) is False:
-                    return visited
-
-            # 오른쪽 셀로 이동
-            before = list_id
-            result = hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
-            after = hwp.GetPos()[0]
-
-            if not result or after == before:
-                break
-            col += 1
-
-        # 다음 행으로 이동
-        hwp.SetPos(row_start_pos[0], row_start_pos[1], row_start_pos[2])
-        before = hwp.GetPos()[0]
-        result = hwp.MovePos(MOVE_DOWN_OF_CELL, 0, 0)
-        after = hwp.GetPos()[0]
-
-        if not result or after == before:
-            break
-        row += 1
-
-    return visited
-
-
 def get_ctrls_in_cell(hwp, target_list_id, target_para_id=None):
     """
     특정 셀(list_id)에 속한 컨트롤 찾기

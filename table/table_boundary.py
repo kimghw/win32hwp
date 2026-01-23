@@ -31,14 +31,14 @@ class TableBoundaryResult:
     """테이블 경계 분석 결과"""
     # 셀 ID 경계
     table_origin: int = 0       # 테이블 첫 번째 셀의 list_id
-    table_end: int = 0          # last_cols의 마지막 셀의 list_id
+    table_end: int = 0          # right_border_line의 마지막 셀의 list_id
     table_cell_counts: int = 0  # 총 셀 개수
 
     # 4방향 경계 셀 리스트
-    first_rows: List[int] = field(default_factory=list)   # 첫 번째 행 셀들
-    bottom_rows: List[int] = field(default_factory=list)  # 마지막 행 셀들
-    first_cols: List[int] = field(default_factory=list)   # 첫 번째 열 셀들
-    last_cols: List[int] = field(default_factory=list)    # 마지막 열 셀들
+    top_border_line: List[int] = field(default_factory=list)   # 첫 번째 행 셀들
+    bottom_border_line: List[int] = field(default_factory=list)  # 마지막 행 셀들
+    left_border_line: List[int] = field(default_factory=list)   # 첫 번째 열 셀들
+    right_border_line: List[int] = field(default_factory=list)    # 마지막 열 셀들
 
     # 좌표 경계 (HWPUNIT)
     start_x: int = 0            # 테이블 시작 x (항상 0)
@@ -68,7 +68,7 @@ class SubCellInfo:
 @dataclass
 class RowSubsetResult:
     """행 단위 서브셋 분할 결과"""
-    row_index: int = 0                  # first_cols 인덱스 (행 번호)
+    row_index: int = 0                  # left_border_line 인덱스 (행 번호)
     start_cell: int = 0                 # 행 시작 셀 list_id
     cells: List[SubCellInfo] = field(default_factory=list)  # 행의 모든 셀
     subcell_boundaries: List[int] = field(default_factory=list)  # 서브셀 경계 list_id들
@@ -88,7 +88,7 @@ class CellWidthInfo:
 @dataclass
 class RowWidthResult:
     """행별 셀 너비 결과"""
-    row_index: int = 0                              # first_cols 인덱스 (행 번호)
+    row_index: int = 0                              # left_border_line 인덱스 (행 번호)
     start_cell: int = 0                             # 행 시작 셀 (first_col)
     end_cell: int = 0                               # 행 끝 셀 (last_col)
     cells: List[CellWidthInfo] = field(default_factory=list)  # 행의 모든 셀 너비 정보
@@ -254,27 +254,27 @@ class TableBoundary:
         # 이동 실패, tbl 밖, 또는 같은 셀이면 마지막 열
         return not result or not has_tbl or new_list_id == target_list_id
 
-    def _calc_xend_from_first_rows(self, first_rows: List[int]) -> int:
+    def _calc_xend_from_top_border_line(self, top_border_line: List[int]) -> int:
         """
-        first_rows 셀들의 너비 합 = xend (테이블 전체 가로 크기)
+        top_border_line 셀들의 너비 합 = xend (테이블 전체 가로 크기)
 
         Args:
-            first_rows: 첫 번째 행의 셀 list_id 리스트
+            top_border_line: 첫 번째 행의 셀 list_id 리스트
 
         Returns:
             int: xend (HWPUNIT)
         """
-        if not first_rows:
+        if not top_border_line:
             return 0
 
-        first_rows_set = set(first_rows)
-        start_cell = first_rows[0]
+        top_border_line_set = set(top_border_line)
+        start_cell = top_border_line[0]
         self.hwp.SetPos(start_cell, 0, 0)
 
         cumulative_x = 0
         current_id = start_cell
 
-        while current_id in first_rows_set:
+        while current_id in top_border_line_set:
             w, _ = self._table_info.get_cell_dimensions()
             cumulative_x += w
 
@@ -287,43 +287,43 @@ class TableBoundary:
 
             current_id = next_id
 
-        self._log(f"[xend] first_rows: {first_rows}, xend={cumulative_x}")
+        self._log(f"[xend] top_border_line: {top_border_line}, xend={cumulative_x}")
         return cumulative_x
 
-    def _calc_yend_from_first_cols(self, first_cols: List[int]) -> int:
+    def _calc_yend_from_left_border_line(self, left_border_line: List[int]) -> int:
         """
-        first_cols 셀들의 높이 합 = yend (테이블 전체 세로 크기)
+        left_border_line 셀들의 높이 합 = yend (테이블 전체 세로 크기)
 
         Args:
-            first_cols: 첫 번째 열의 셀 list_id 리스트
+            left_border_line: 첫 번째 열의 셀 list_id 리스트
 
         Returns:
             int: yend (HWPUNIT)
         """
-        if not first_cols:
+        if not left_border_line:
             return 0
 
         # 중복 제거 (순서 유지)
         seen = set()
-        unique_first_cols = []
-        for cell_id in first_cols:
+        unique_left_border_line = []
+        for cell_id in left_border_line:
             if cell_id not in seen:
                 seen.add(cell_id)
-                unique_first_cols.append(cell_id)
+                unique_left_border_line.append(cell_id)
 
         cumulative_y = 0
 
-        for cell_id in unique_first_cols:
+        for cell_id in unique_left_border_line:
             self.hwp.SetPos(cell_id, 0, 0)
             _, h = self._table_info.get_cell_dimensions()
             cumulative_y += h
 
-        self._log(f"[yend] first_cols (unique): {unique_first_cols}, yend={cumulative_y}")
+        self._log(f"[yend] left_border_line (unique): {unique_left_border_line}, yend={cumulative_y}")
         return cumulative_y
 
     def _find_lastcols_by_xend(self, start_cell: int, xend: int, tolerance: int = 50) -> dict:
         """
-        start_cell부터 우측으로 순회하면서 xend 기준으로 last_cols 찾기
+        start_cell부터 우측으로 순회하면서 xend 기준으로 right_border_line 찾기
 
         - xend 초과 시: 이전 셀 = last_col, 현재 셀 = first_col
         - xend 도달 시: 현재 셀 = last_col
@@ -334,13 +334,13 @@ class TableBoundary:
             tolerance: 허용 오차 (HWPUNIT)
 
         Returns:
-            dict: {'first_cols': [...], 'last_cols': [...]}
+            dict: {'left_border_line': [...], 'right_border_line': [...]}
         """
         self.hwp.SetPos(start_cell, 0, 0)
         current_id = start_cell
         cumulative_x = 0
-        last_cols = []
-        first_cols = [start_cell]
+        right_border_line = []
+        left_border_line = [start_cell]
         prev_id = None
 
         max_iterations = 1000
@@ -353,15 +353,15 @@ class TableBoundary:
             # xend 초과 → 이전 셀이 last_col, 현재 셀은 새 행의 first_col
             if cumulative_x > xend + tolerance:
                 if prev_id is not None:
-                    last_cols.append(prev_id)
+                    right_border_line.append(prev_id)
 
-                first_cols.append(current_id)
+                left_border_line.append(current_id)
                 cumulative_x = w
                 prev_id = None
 
             # xend 도달 (오차 범위 내)
             elif abs(cumulative_x - xend) <= tolerance:
-                last_cols.append(current_id)
+                right_border_line.append(current_id)
 
                 # 우측 이동
                 self.hwp.SetPos(current_id, 0, 0)
@@ -371,7 +371,7 @@ class TableBoundary:
                 if next_id == current_id:
                     break
 
-                first_cols.append(next_id)
+                left_border_line.append(next_id)
                 cumulative_x = 0
                 prev_id = None
                 current_id = next_id
@@ -384,17 +384,17 @@ class TableBoundary:
             next_id = self.hwp.GetPos()[0]
 
             if next_id == current_id:
-                last_cols.append(current_id)
+                right_border_line.append(current_id)
                 break
 
             current_id = next_id
 
-        self._log(f"[xend 순회] first_cols: {first_cols}")
-        self._log(f"[xend 순회] last_cols: {last_cols}")
+        self._log(f"[xend 순회] left_border_line: {left_border_line}")
+        self._log(f"[xend 순회] right_border_line: {right_border_line}")
 
         return {
-            'first_cols': first_cols,
-            'last_cols': last_cols,
+            'left_border_line': left_border_line,
+            'right_border_line': right_border_line,
         }
 
     def map_grid_by_xend(self, start_cell: int = None, xend: int = None, tolerance: int = 50) -> dict:
@@ -429,20 +429,20 @@ class TableBoundary:
 
             all_list_ids = sorted(cells.keys())
 
-            first_rows = []
+            top_border_line = []
             for list_id in all_list_ids:
                 if self.check_first_row_cell(list_id):
-                    first_rows.append(list_id)
-            first_rows.sort()
+                    top_border_line.append(list_id)
+            top_border_line.sort()
 
-            if not first_rows:
+            if not top_border_line:
                 return {'grid': {}, 'rowspan_positions': {}, 'col_positions': [],
                         'max_row': 0, 'max_col': 0, 'xend': 0}
 
             if start_cell is None:
-                start_cell = first_rows[0]
+                start_cell = top_border_line[0]
             if xend is None:
-                xend = self._calc_xend_from_first_rows(first_rows)
+                xend = self._calc_xend_from_top_border_line(top_border_line)
 
         self._log(f"[map_grid] start_cell={start_cell}, xend={xend}")
 
@@ -554,9 +554,9 @@ class TableBoundary:
         테이블의 모든 셀을 순회하면서 경계 정보 계산
 
         1. table_origin 계산 - 테이블 첫 번째 셀의 list_id
-        2. first_rows, bottom_rows 계산 - 첫/마지막 행에 속한 셀들
-        3. first_cols, last_cols 계산 - 첫/마지막 열에 속한 셀들
-        4. table_end 계산 - bottom_rows의 마지막 list_id
+        2. top_border_line, bottom_border_line 계산 - 첫/마지막 행에 속한 셀들
+        3. left_border_line, right_border_line 계산 - 첫/마지막 열에 속한 셀들
+        4. table_end 계산 - bottom_border_line의 마지막 list_id
 
         Returns:
             TableBoundaryResult: 경계 분석 결과
@@ -583,49 +583,49 @@ class TableBoundary:
         self._log(f"table_origin: {result.table_origin}")
         self._log(f"table_cell_counts: {result.table_cell_counts}")
 
-        # 2. first_rows, bottom_rows 계산
+        # 2. top_border_line, bottom_border_line 계산
         for list_id in all_list_ids:
             if self.check_first_row_cell(list_id):
-                result.first_rows.append(list_id)
+                result.top_border_line.append(list_id)
             if self.check_bottom_row_cell(list_id):
-                result.bottom_rows.append(list_id)
+                result.bottom_border_line.append(list_id)
 
-        result.first_rows.sort()
-        result.bottom_rows.sort()
-        self._log(f"first_rows: {result.first_rows}")
-        self._log(f"bottom_rows: {result.bottom_rows}")
+        result.top_border_line.sort()
+        result.bottom_border_line.sort()
+        self._log(f"top_border_line: {result.top_border_line}")
+        self._log(f"bottom_border_line: {result.bottom_border_line}")
 
-        # 3. xend 계산 및 last_cols/first_cols 계산 (xend 기반 우측 순회)
-        xend = self._calc_xend_from_first_rows(result.first_rows)
+        # 3. xend 계산 및 right_border_line/left_border_line 계산 (xend 기반 우측 순회)
+        xend = self._calc_xend_from_top_border_line(result.top_border_line)
 
-        if xend > 0 and result.first_rows:
-            xend_result = self._find_lastcols_by_xend(result.first_rows[0], xend)
-            result.first_cols = xend_result['first_cols']
-            result.last_cols = xend_result['last_cols']
+        if xend > 0 and result.top_border_line:
+            xend_result = self._find_lastcols_by_xend(result.top_border_line[0], xend)
+            result.left_border_line = xend_result['left_border_line']
+            result.right_border_line = xend_result['right_border_line']
         else:
             # fallback: table_origin에서 아래로 내려가면서 수집
             self.hwp.SetPos(result.table_origin, 0, 0)
             while True:
                 current_id, _, _ = self.hwp.GetPos()
-                result.first_cols.append(current_id)
+                result.left_border_line.append(current_id)
                 before_id = current_id
                 self.hwp.MovePos(MOVE_DOWN_OF_CELL, 0, 0)
                 after_id, _, _ = self.hwp.GetPos()
                 if after_id == before_id:
                     break
 
-        # table_end = last_cols의 마지막 list_id
-        if result.last_cols:
-            result.table_end = result.last_cols[-1]
+        # table_end = right_border_line의 마지막 list_id
+        if result.right_border_line:
+            result.table_end = result.right_border_line[-1]
 
         # 4. 좌표 경계 계산
         result.start_x = 0
         result.start_y = 0
         result.end_x = xend
-        result.end_y = self._calc_yend_from_first_cols(result.first_cols)
+        result.end_y = self._calc_yend_from_left_border_line(result.left_border_line)
 
-        self._log(f"first_cols: {result.first_cols}")
-        self._log(f"last_cols: {result.last_cols}")
+        self._log(f"left_border_line: {result.left_border_line}")
+        self._log(f"right_border_line: {result.right_border_line}")
         self._log(f"table_end: {result.table_end}")
         self._log(f"좌표 경계: ({result.start_x}, {result.start_y}) ~ ({result.end_x}, {result.end_y})")
 
@@ -640,19 +640,19 @@ class TableBoundary:
         print(f"table_origin: {result.table_origin}")
         print(f"table_end: {result.table_end}")
         print(f"table_cell_counts: {result.table_cell_counts}")
-        print(f"first_rows: {result.first_rows}")
-        print(f"bottom_rows: {result.bottom_rows}")
-        print(f"first_cols: {result.first_cols}")
-        print(f"last_cols: {result.last_cols}")
+        print(f"top_border_line: {result.top_border_line}")
+        print(f"bottom_border_line: {result.bottom_border_line}")
+        print(f"left_border_line: {result.left_border_line}")
+        print(f"right_border_line: {result.right_border_line}")
         print(f"좌표 경계: ({result.start_x}, {result.start_y}) ~ ({result.end_x}, {result.end_y})")
 
-    def move_right_down_left(self, target_list_id: int, last_cols_set: set) -> Tuple[List[int], int, bool]:
+    def move_right_down_left(self, target_list_id: int, right_border_line_set: set) -> Tuple[List[int], int, bool]:
         """
         특정 셀에서 우 → 하 → 좌 순서로 커서 이동하며 셀 수집
 
         Args:
             target_list_id: 대상 셀의 list_id
-            last_cols_set: 마지막 열 셀들의 집합 (종료 조건)
+            right_border_line_set: 마지막 열 셀들의 집합 (종료 조건)
 
         Returns:
             tuple: (collected_cells, last_cell, is_stopped)
@@ -663,7 +663,7 @@ class TableBoundary:
         collected = []
         current = target_list_id
 
-        while current not in last_cols_set:
+        while current not in right_border_line_set:
             self.hwp.SetPos(current, 0, 0)
 
             # 우로 이동
@@ -672,7 +672,7 @@ class TableBoundary:
             if right_id != current:
                 collected.append(right_id)
                 current = right_id
-                if current in last_cols_set:
+                if current in right_border_line_set:
                     break
                 continue
 
@@ -682,7 +682,7 @@ class TableBoundary:
             if down_id != current:
                 collected.append(down_id)
                 current = down_id
-                if current in last_cols_set:
+                if current in right_border_line_set:
                     break
                 continue
 
@@ -692,7 +692,7 @@ class TableBoundary:
             if left_id != current:
                 collected.append(left_id)
                 current = left_id
-                if current in last_cols_set:
+                if current in right_border_line_set:
                     break
                 continue
 
@@ -701,11 +701,11 @@ class TableBoundary:
 
         return (collected, current, False)
 
-    def _sort_first_cols_by_position(self, first_cols: List[int]) -> List[int]:
-        """first_cols를 y좌표(위치) 기준으로 정렬"""
+    def _sort_left_border_line_by_position(self, left_border_line: List[int]) -> List[int]:
+        """left_border_line를 y좌표(위치) 기준으로 정렬"""
         # 각 셀의 위치 정보 수집
         positions = []
-        for list_id in first_cols:
+        for list_id in left_border_line:
             self.hwp.SetPos(list_id, 0, 0)
             # KeyIndicator로 페이지/줄 정보 획득
             key = self.hwp.KeyIndicator()
@@ -731,20 +731,20 @@ class TableBoundary:
             boundary_result = self.check_boundary_table()
 
         subsets = []
-        last_cols_set = set(boundary_result.last_cols)
+        right_border_line_set = set(boundary_result.right_border_line)
 
-        # 1. first_cols 정렬 (y좌표 기준)
-        sorted_first_cols = self._sort_first_cols_by_position(boundary_result.first_cols)
-        self._log(f"sorted_first_cols: {sorted_first_cols}")
+        # 1. left_border_line 정렬 (y좌표 기준)
+        sorted_left_border_line = self._sort_left_border_line_by_position(boundary_result.left_border_line)
+        self._log(f"sorted_left_border_line: {sorted_left_border_line}")
 
-        # 2. 각 first_cols에서 시작하여 서브셋 탐색
-        for start_cell in sorted_first_cols:
+        # 2. 각 left_border_line에서 시작하여 서브셋 탐색
+        for start_cell in sorted_left_border_line:
             subset = SubTableResult(start=start_cell, cells=[start_cell])
 
             self._log(f"서브셋 시작: {start_cell}")
 
             # 우→하→좌 순회하며 셀 수집
-            collected, last_cell, is_stopped = self.move_right_down_left(start_cell, last_cols_set)
+            collected, last_cell, is_stopped = self.move_right_down_left(start_cell, right_border_line_set)
             subset.cells.extend(collected)
             subset.end = last_cell
 
@@ -815,11 +815,11 @@ class TableBoundary:
         테이블을 행 단위로 서브셋 분할 (셀 높이 기반)
 
         알고리즘:
-        1. first_cols의 각 원소(행 시작 셀)에서 시작
+        1. left_border_line의 각 원소(행 시작 셀)에서 시작
         2. 우측으로 이동하면서 list_id와 셀의 높이/넓이 수집
         3. 우측 이동 시 list_id가 동일하거나 다음 first_col을 만나면 해당 행 종료
         4. 높이가 달라지는 셀을 새로운 subcell로 정의 (같은 높이 = 같은 서브셀)
-        5. 마지막 first_cols에서 우측 이동 시 list_id 동일하면 전체 종료
+        5. 마지막 left_border_line에서 우측 이동 시 list_id 동일하면 전체 종료
 
         Args:
             boundary_result: 경계 분석 결과 (없으면 새로 계산)
@@ -831,14 +831,14 @@ class TableBoundary:
             boundary_result = self.check_boundary_table()
 
         results = []
-        first_cols = self._sort_first_cols_by_position(boundary_result.first_cols)
-        first_cols_set = set(first_cols)
-        last_first_col = first_cols[-1] if first_cols else None
+        left_border_line = self._sort_left_border_line_by_position(boundary_result.left_border_line)
+        left_border_line_set = set(left_border_line)
+        last_first_col = left_border_line[-1] if left_border_line else None
 
-        self._log(f"first_cols (정렬): {first_cols}")
+        self._log(f"left_border_line (정렬): {left_border_line}")
         self._log(f"마지막 first_col: {last_first_col}")
 
-        for row_idx, start_cell in enumerate(first_cols):
+        for row_idx, start_cell in enumerate(left_border_line):
             row_result = RowSubsetResult(
                 row_index=row_idx,
                 start_cell=start_cell
@@ -881,8 +881,8 @@ class TableBoundary:
                 while next_id in visited and loop_count < 100:
                     loop_count += 1
 
-                    # first_cols 원소를 만나면 경계 지점으로 추가
-                    if next_id in first_cols_set and next_id != start_cell:
+                    # left_border_line 원소를 만나면 경계 지점으로 추가
+                    if next_id in left_border_line_set and next_id != start_cell:
                         if next_id not in row_result.subcell_boundaries:
                             row_result.subcell_boundaries.append(next_id)
                             self._log(f"  경계 추가 (first_col 재방문): list_id={next_id}")
@@ -897,11 +897,11 @@ class TableBoundary:
                         break
 
                     # first_col 만나면 종료 (다음 행의 시작)
-                    if next_id in first_cols_set and next_id != start_cell:
+                    if next_id in left_border_line_set and next_id != start_cell:
                         break
 
                 # first_col 만나면 행 종료
-                if next_id in first_cols_set and next_id != start_cell:
+                if next_id in left_border_line_set and next_id != start_cell:
                     self._log(f"  행 {row_idx} 종료: 다음 first_col 도달 (list_id={next_id})")
                     break
 
@@ -937,7 +937,7 @@ class TableBoundary:
 
             results.append(row_result)
 
-            # 조건 5: 마지막 first_cols 처리 완료 후 종료
+            # 조건 5: 마지막 left_border_line 처리 완료 후 종료
             if start_cell == last_first_col:
                 self._log(f"마지막 first_col 처리 완료, 전체 종료")
                 break
@@ -958,25 +958,25 @@ class TableBoundary:
                 marker = " *" if cell.is_new_subcell else ""
                 print(f"    list_id={cell.list_id}, size=({cell.width}, {cell.height}){marker}")
 
-    def _find_matching_last_col(self, start_cell: int, last_cols: List[int]) -> Optional[int]:
+    def _find_matching_last_col(self, start_cell: int, right_border_line: List[int]) -> Optional[int]:
         """
         start_cell에서 오른쪽으로 이동하여 해당 행의 last_col 찾기
 
         Args:
             start_cell: 행 시작 셀
-            last_cols: 정렬된 last_cols 리스트
+            right_border_line: 정렬된 right_border_line 리스트
 
         Returns:
             해당 행의 last_col, 없으면 None
         """
-        last_cols_set = set(last_cols)
+        right_border_line_set = set(right_border_line)
         visited = set()
         current_id = start_cell
         visited.add(current_id)
 
         max_steps = 1000
         for _ in range(max_steps):
-            if current_id in last_cols_set:
+            if current_id in right_border_line_set:
                 return current_id
 
             self.hwp.SetPos(current_id, 0, 0)
@@ -997,10 +997,10 @@ class TableBoundary:
 
     def calculate_row_widths(self, boundary_result: TableBoundaryResult = None) -> TableWidthResult:
         """
-        first_cols에서 last_cols까지 오른쪽으로 이동하면서 셀 너비 누적 계산
+        left_border_line에서 right_border_line까지 오른쪽으로 이동하면서 셀 너비 누적 계산
 
         알고리즘:
-        1. first_cols와 last_cols를 y좌표 기준으로 정렬하여 행 매칭
+        1. left_border_line와 right_border_line를 y좌표 기준으로 정렬하여 행 매칭
         2. 각 first_col에서 시작하여 해당 행의 last_col까지만 이동
         3. 이동할 때마다 셀 너비를 수집하고 누적 (이미 방문한 셀은 건너뜀)
         4. 해당 행의 last_col에 도달하면 행 종료
@@ -1017,18 +1017,18 @@ class TableBoundary:
 
         result = TableWidthResult()
 
-        # first_cols와 last_cols 정렬
-        first_cols = self._sort_first_cols_by_position(boundary_result.first_cols)
-        last_cols = self._sort_first_cols_by_position(boundary_result.last_cols)
-        first_cols_set = set(first_cols)
-        last_cols_set = set(last_cols)
+        # left_border_line와 right_border_line 정렬
+        left_border_line = self._sort_left_border_line_by_position(boundary_result.left_border_line)
+        right_border_line = self._sort_left_border_line_by_position(boundary_result.right_border_line)
+        left_border_line_set = set(left_border_line)
+        right_border_line_set = set(right_border_line)
 
-        self._log(f"[너비 계산] first_cols: {first_cols}")
-        self._log(f"[너비 계산] last_cols: {last_cols}")
+        self._log(f"[너비 계산] left_border_line: {left_border_line}")
+        self._log(f"[너비 계산] right_border_line: {right_border_line}")
 
         cumulative_y = 0  # y 좌표 누적
 
-        for row_idx, start_cell in enumerate(first_cols):
+        for row_idx, start_cell in enumerate(left_border_line):
             row_result = RowWidthResult(
                 row_index=row_idx,
                 start_cell=start_cell,
@@ -1045,8 +1045,8 @@ class TableBoundary:
             cumulative_x = width
             visited_in_row.add(start_cell)
 
-            # 행 높이는 첫 번째 셀 기준
-            row_result.row_height = height
+            # 행 높이 후보 수집 (row-span 셀 처리를 위해 최소값 사용)
+            row_heights_candidates = [height]
 
             cell_info = CellWidthInfo(
                 list_id=start_cell,
@@ -1070,7 +1070,7 @@ class TableBoundary:
                 step += 1
 
                 # last_col에 도달했으면 종료
-                if current_id in last_cols_set:
+                if current_id in right_border_line_set:
                     row_result.end_cell = current_id
                     self._log(f"  행 {row_idx} 종료: last_col 도달 (list_id={current_id})")
                     break
@@ -1087,7 +1087,7 @@ class TableBoundary:
                     break
 
                 # 다른 행의 first_col을 만나면 종료 (시작 셀 제외)
-                if next_id in first_cols_set and next_id != start_cell:
+                if next_id in left_border_line_set and next_id != start_cell:
                     row_result.end_cell = current_id
                     self._log(f"  행 {row_idx} 종료: 다른 행 first_col 도달 (list_id={next_id})")
                     break
@@ -1105,6 +1105,9 @@ class TableBoundary:
                 width, height = self._get_cell_size(next_id)
                 cumulative_x += width
 
+                # 행 높이 후보에 추가 (row-span 셀은 높이가 크므로 최소값이 실제 행 높이)
+                row_heights_candidates.append(height)
+
                 cell_info = CellWidthInfo(
                     list_id=next_id,
                     width=width,
@@ -1115,9 +1118,13 @@ class TableBoundary:
                 )
                 row_result.cells.append(cell_info)
 
-                self._log(f"  col={col_index}: list_id={next_id}, width={width}, x=[{start_x}~{cumulative_x}]")
+                self._log(f"  col={col_index}: list_id={next_id}, width={width}, height={height}, x=[{start_x}~{cumulative_x}]")
 
                 current_id = next_id
+
+            # 행 높이는 모든 셀 중 최소값 (row-span 셀은 여러 행 높이를 가지므로 제외됨)
+            row_result.row_height = min(row_heights_candidates)
+            self._log(f"  행 {row_idx} 높이 후보: {row_heights_candidates} → 최소값: {row_result.row_height}")
 
             row_result.total_width = cumulative_x
             row_result.end_y = cumulative_y + row_result.row_height
@@ -1141,7 +1148,7 @@ class TableBoundary:
             print(f"\n[행 {row.row_index}] 시작={row.start_cell} → 끝={row.end_cell}, 전체 너비={row.total_width}")
             for cell in row.cells:
                 print(f"  col={cell.col_index}: list_id={cell.list_id}, "
-                      f"width={cell.width}, cumulative={cell.cumulative_width}")
+                      f"width={cell.width}, cumulative={cell.end_x}")
 
 
 

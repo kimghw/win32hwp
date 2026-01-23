@@ -27,37 +27,6 @@ def get_list_id(hwp) -> int:
     return pos[0]
 
 
-def get_list_type(list_id: int) -> str:
-    """
-    list_id의 타입을 문자열로 반환
-
-    Args:
-        list_id: list_id 값
-
-    Returns:
-        str: '본문', '머리말/꼬리말/각주/미주', 또는 '테이블 셀 (ID: n)'
-    """
-    if list_id == 0:
-        return '본문'
-    elif 1 <= list_id <= 9:
-        return '머리말/꼬리말/각주/미주'
-    else:
-        return f'테이블 셀 (ID: {list_id})'
-
-
-def is_in_cell(hwp) -> bool:
-    """
-    현재 커서가 테이블 셀 안에 있는지 확인
-
-    Args:
-        hwp: HWP COM 객체
-
-    Returns:
-        bool: 셀 안이면 True
-    """
-    return get_list_id(hwp) >= 10
-
-
 class ListIdMapper:
     """
     list_id와 (row, col) 좌표 간 변환을 위한 매퍼 클래스

@@ -31,19 +31,6 @@ def get_hwp_instance():
 
 # ========== 유틸리티 함수 ==========
 
-def rgb_to_bgr(r, g, b):
-    """RGB를 HWP BGR 색상값으로 변환"""
-    return (b << 16) | (g << 8) | r
-
-
-def bgr_to_rgb(bgr):
-    """HWP BGR 색상값을 RGB 튜플로 변환"""
-    r = bgr & 0xFF
-    g = (bgr >> 8) & 0xFF
-    b = (bgr >> 16) & 0xFF
-    return (r, g, b)
-
-
 def pt_to_hwpunit(pt):
     """포인트를 HWPUNIT으로 변환 (1pt = 100)"""
     return int(pt * 100)
@@ -172,36 +159,6 @@ def get_cursor_style(hwp):
         'para': get_para_shape(hwp),
         'position': position
     }
-
-
-def print_cursor_style(hwp):
-    """현재 커서 위치의 스타일 정보를 보기 좋게 출력"""
-    style = get_cursor_style(hwp)
-    char = style['char']
-    para = style['para']
-    pos = style['position']
-
-    print("=" * 50)
-    print("[ 커서 위치 ]")
-    print(f"  문단: {pos['para_id']}, 위치: {pos['char_pos']}, 페이지: {pos['page']}, 줄: {pos['line']}")
-    print()
-    print("[ 글자 모양 ]")
-    print(f"  글꼴(한글): {char['font_hangul']}")
-    print(f"  글꼴(영문): {char['font_latin']}")
-    print(f"  크기: {char['size_pt']}pt")
-    print(f"  굵게: {'예' if char['bold'] else '아니오'}, 기울임: {'예' if char['italic'] else '아니오'}")
-    print(f"  밑줄: {char['underline']}, 취소선: {char['strikeout']}")
-    print(f"  글자색(RGB): {char['text_color_rgb']}")
-    print(f"  자간: {char['spacing']}, 장평: {char['ratio']}%")
-    print()
-    print("[ 문단 모양 ]")
-    print(f"  정렬: {para['align_name']}")
-    print(f"  줄간격: {para['line_spacing']}% ({para['line_spacing_type_name']})")
-    print(f"  문단 위 여백: {para['prev_spacing_pt']}pt")
-    print(f"  문단 아래 여백: {para['next_spacing_pt']}pt")
-    print(f"  왼쪽 여백: {para['left_margin_pt']}pt, 오른쪽 여백: {para['right_margin_pt']}pt")
-    print(f"  들여쓰기: {para['indent_pt']}pt")
-    print("=" * 50)
 
 
 # ========== 색상 상수 ==========

@@ -174,23 +174,3 @@ def get_all_merge_info(result: CellPositionResult) -> List[dict]:
     """
     merged_cells = get_merged_cells(result)
     return [get_merge_info(result, c.list_id) for c in merged_cells]
-
-
-def print_cell_summary(result: CellPositionResult):
-    """
-    셀 위치 계산 결과 요약 출력
-
-    Args:
-        result: 셀 위치 계산 결과
-    """
-    print(f"\n=== 셀 위치 계산 결과 ===")
-    print(f"X 레벨: {len(result.x_levels)}개")
-    print(f"Y 레벨: {len(result.y_levels)}개")
-    print(f"총 셀: {len(result.cells)}개")
-    print(f"테이블 크기: {result.max_row + 1}행 x {result.max_col + 1}열")
-
-    merged = get_merged_cells(result)
-    if merged:
-        print(f"\n=== 병합 셀 ({len(merged)}개) ===")
-        for cell in sorted(merged, key=lambda c: (c.start_row, c.start_col)):
-            print(f"  list_id={cell.list_id}: {cell}")

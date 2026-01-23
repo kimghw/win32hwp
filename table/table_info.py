@@ -59,14 +59,6 @@ class TableInfo:
         pos = self.hwp.GetPos()
         return pos[0]
 
-    def _move_to_first_cell_simple(self) -> bool:
-        """테이블의 첫 번째 셀(좌상단)로 이동 (로그 없음)"""
-        # 행의 시작으로 이동
-        self.hwp.MovePos(MOVE_START_OF_CELL, 0, 0)
-        # 열의 시작(맨 위)으로 이동
-        self.hwp.MovePos(MOVE_TOP_OF_CELL, 0, 0)
-        return True
-
     def is_in_table(self) -> bool:
         """현재 커서가 테이블 내부에 있는지 확인"""
         try:
@@ -649,27 +641,3 @@ class TableInfo:
             })
 
         return captions
-
-
-if __name__ == "__main__":
-    hwp = get_hwp_instance()
-    if not hwp:
-        print("[오류] 한글이 실행 중이지 않습니다.")
-        exit(1)
-
-    table = TableInfo(hwp, debug=False)
-
-    if not table.is_in_table():
-        print("[오류] 커서가 테이블 내부에 있지 않습니다.")
-        exit(1)
-
-    # 셀 수집
-    cells = table.collect_cells_bfs()
-    print(f"수집된 셀: {len(cells)}개")
-
-    # 테이블 크기
-    size = table.get_table_size()
-    print(f"테이블 크기: {size['rows']}행 x {size['cols']}열")
-
-    # 좌표 매핑
-    table.print_coordinate_map()

@@ -5,7 +5,7 @@
 HWP 문서 내 컨트롤(표, 그림, 수식 등)을 탐색하고 정보를 조회합니다.
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 
 
 # 컨트롤 ID → 이름 매핑
@@ -56,19 +56,6 @@ def find_ctrl(hwp) -> str:
         return ''
 
 
-def get_ctrl_name(ctrl_id: str) -> str:
-    """
-    컨트롤 ID에 해당하는 이름 반환
-
-    Args:
-        ctrl_id: 컨트롤 ID (예: 'tbl', 'gso')
-
-    Returns:
-        str: 컨트롤 이름 (예: '표', '그리기 개체')
-    """
-    return CTRL_NAMES.get(ctrl_id, '알 수 없는 컨트롤')
-
-
 def get_ctrls_in_cell(hwp, target_list_id: int, target_para_id: int = None) -> List[Dict]:
     """
     특정 셀(list_id)에 속한 컨트롤 찾기
@@ -108,44 +95,6 @@ def get_ctrls_in_cell(hwp, target_list_id: int, target_para_id: int = None) -> L
                             'desc': getattr(ctrl, 'UserDesc', ctrl_id),
                             'para': ctrl_para_id
                         })
-        except:
-            pass
-        ctrl = ctrl.Next
-
-    return ctrls
-
-
-def iterate_all_ctrls(hwp) -> List[Dict]:
-    """
-    문서 내 모든 컨트롤 순회
-
-    Args:
-        hwp: HWP COM 객체
-
-    Returns:
-        list: [{
-            'ctrl': 컨트롤 객체,
-            'id': 컨트롤 ID,
-            'desc': 설명,
-            'list_id': 위치 list_id,
-            'para_id': 위치 para_id
-        }, ...]
-    """
-    ctrls = []
-    ctrl = hwp.HeadCtrl
-
-    while ctrl:
-        try:
-            ctrl_id = ctrl.CtrlID
-            if ctrl_id and ctrl_id not in ("secd", "cold"):
-                anchor = ctrl.GetAnchorPos(0)
-                ctrls.append({
-                    'ctrl': ctrl,
-                    'id': ctrl_id,
-                    'desc': getattr(ctrl, 'UserDesc', ctrl_id),
-                    'list_id': anchor.Item("List"),
-                    'para_id': anchor.Item("Para")
-                })
         except:
             pass
         ctrl = ctrl.Next
