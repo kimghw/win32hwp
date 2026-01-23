@@ -15,7 +15,4 @@ from .table_field import TableField, FieldInfo
 from .table_boundary import (
     TableBoundary,
     TableBoundaryResult,
-    SubTableResult,
-    SubCellInfo,
-    RowSubsetResult,
 )

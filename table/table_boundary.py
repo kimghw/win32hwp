@@ -29,13 +29,22 @@ except ImportError:
 @dataclass
 class TableBoundaryResult:
     """테이블 경계 분석 결과"""
+    # 셀 ID 경계
     table_origin: int = 0       # 테이블 첫 번째 셀의 list_id
     table_end: int = 0          # last_cols의 마지막 셀의 list_id
     table_cell_counts: int = 0  # 총 셀 개수
+
+    # 4방향 경계 셀 리스트
     first_rows: List[int] = field(default_factory=list)   # 첫 번째 행 셀들
     bottom_rows: List[int] = field(default_factory=list)  # 마지막 행 셀들
     first_cols: List[int] = field(default_factory=list)   # 첫 번째 열 셀들
     last_cols: List[int] = field(default_factory=list)    # 마지막 열 셀들
+
+    # 좌표 경계 (HWPUNIT)
+    start_x: int = 0            # 테이블 시작 x (항상 0)
+    start_y: int = 0            # 테이블 시작 y (항상 0)
+    end_x: int = 0              # 테이블 끝 x (xend)
+    end_y: int = 0              # 테이블 끝 y (yend)
 
 
 @dataclass
@@ -63,24 +72,6 @@ class RowSubsetResult:
     start_cell: int = 0                 # 행 시작 셀 list_id
     cells: List[SubCellInfo] = field(default_factory=list)  # 행의 모든 셀
     subcell_boundaries: List[int] = field(default_factory=list)  # 서브셀 경계 list_id들
-
-
-@dataclass
-class CellCoordinate:
-    """셀 좌표 정보"""
-    list_id: int
-    row: int = 0        # 행 번호 (0부터 시작)
-    col: int = 0        # 열 번호 (0부터 시작)
-    visit_count: int = 0  # 해당 셀 방문 횟수
-
-
-@dataclass
-class CellCoordinateResult:
-    """셀 좌표 매핑 결과"""
-    cells: Dict[int, CellCoordinate] = field(default_factory=dict)  # list_id -> CellCoordinate
-    max_row: int = 0    # 최대 행 번호
-    max_col: int = 0    # 최대 열 번호
-    traversal_order: List[int] = field(default_factory=list)  # 순회 순서
 
 
 @dataclass
@@ -112,26 +103,6 @@ class TableWidthResult:
     """테이블 전체 셀 너비 결과"""
     rows: List[RowWidthResult] = field(default_factory=list)
     max_width: int = 0                              # 가장 넓은 행의 너비
-
-
-@dataclass
-class CellAdjacency:
-    """셀의 인접 노드 정보"""
-    list_id: int
-    row: int = 0
-    col: int = 0
-    left: List[int] = field(default_factory=list)    # 왼쪽 인접 노드들
-    right: List[int] = field(default_factory=list)   # 오른쪽 인접 노드들
-    up: List[int] = field(default_factory=list)      # 위쪽 인접 노드들
-    down: List[int] = field(default_factory=list)    # 아래쪽 인접 노드들
-
-
-@dataclass
-class CellAdjacencyResult:
-    """모든 셀의 인접 관계 결과"""
-    nodes: Dict[int, CellAdjacency] = field(default_factory=dict)  # list_id -> CellAdjacency
-    max_row: int = 0
-    max_col: int = 0
 
 
 class TableBoundary:
@@ -318,6 +289,37 @@ class TableBoundary:
 
         self._log(f"[xend] first_rows: {first_rows}, xend={cumulative_x}")
         return cumulative_x
+
+    def _calc_yend_from_first_cols(self, first_cols: List[int]) -> int:
+        """
+        first_cols 셀들의 높이 합 = yend (테이블 전체 세로 크기)
+
+        Args:
+            first_cols: 첫 번째 열의 셀 list_id 리스트
+
+        Returns:
+            int: yend (HWPUNIT)
+        """
+        if not first_cols:
+            return 0
+
+        # 중복 제거 (순서 유지)
+        seen = set()
+        unique_first_cols = []
+        for cell_id in first_cols:
+            if cell_id not in seen:
+                seen.add(cell_id)
+                unique_first_cols.append(cell_id)
+
+        cumulative_y = 0
+
+        for cell_id in unique_first_cols:
+            self.hwp.SetPos(cell_id, 0, 0)
+            _, h = self._table_info.get_cell_dimensions()
+            cumulative_y += h
+
+        self._log(f"[yend] first_cols (unique): {unique_first_cols}, yend={cumulative_y}")
+        return cumulative_y
 
     def _find_lastcols_by_xend(self, start_cell: int, xend: int, tolerance: int = 50) -> dict:
         """
@@ -616,9 +618,16 @@ class TableBoundary:
         if result.last_cols:
             result.table_end = result.last_cols[-1]
 
+        # 4. 좌표 경계 계산
+        result.start_x = 0
+        result.start_y = 0
+        result.end_x = xend
+        result.end_y = self._calc_yend_from_first_cols(result.first_cols)
+
         self._log(f"first_cols: {result.first_cols}")
         self._log(f"last_cols: {result.last_cols}")
         self._log(f"table_end: {result.table_end}")
+        self._log(f"좌표 경계: ({result.start_x}, {result.start_y}) ~ ({result.end_x}, {result.end_y})")
 
         return result
 
@@ -635,6 +644,7 @@ class TableBoundary:
         print(f"bottom_rows: {result.bottom_rows}")
         print(f"first_cols: {result.first_cols}")
         print(f"last_cols: {result.last_cols}")
+        print(f"좌표 경계: ({result.start_x}, {result.start_y}) ~ ({result.end_x}, {result.end_y})")
 
     def move_right_down_left(self, target_list_id: int, last_cols_set: set) -> Tuple[List[int], int, bool]:
         """
@@ -948,630 +958,6 @@ class TableBoundary:
                 marker = " *" if cell.is_new_subcell else ""
                 print(f"    list_id={cell.list_id}, size=({cell.width}, {cell.height}){marker}")
 
-    def map_cell_coordinates(self, boundary_result: TableBoundaryResult = None) -> CellCoordinateResult:
-        """
-        first_col 기반으로 셀 좌표 매핑 (방문 횟수로 행 결정)
-
-        알고리즘:
-        1. first_cols의 첫 번째 원소부터 시작
-        2. 오른쪽 키보드 이동으로 순회하면서 동일한 셀 방문 횟수 저장
-        3. 다음 first_col 원소를 만나면:
-           - 이전 서브셀을 처음 순회한 경우 → 첫 번째 행 (row=0)
-           - 이전에 동일한 서브셀을 1번 순회한 경우 → 두 번째 행 (row=1)
-           - 이전에 2번 순회한 경우 → 세 번째 행 (row=2)
-        4. 열 번호는 가장 가까운 first_col로부터 지나온 수
-        5. 이전에 방문한 셀은 최초 1회만 좌표 설정, 이후는 건너뜀
-
-        Args:
-            boundary_result: 경계 분석 결과 (없으면 새로 계산)
-
-        Returns:
-            CellCoordinateResult: 셀 좌표 매핑 결과
-        """
-        if boundary_result is None:
-            boundary_result = self.check_boundary_table()
-
-        result = CellCoordinateResult()
-        first_cols = self._sort_first_cols_by_position(boundary_result.first_cols)
-        first_cols_set = set(first_cols)
-
-        self._log(f"first_cols (정렬): {first_cols}")
-
-        # 방문 횟수 추적: list_id -> 방문 횟수
-        visit_count: Dict[int, int] = {}
-
-        # 좌표가 설정된 셀 추적: list_id -> True
-        coord_assigned: Dict[int, bool] = {}
-
-        current_row = 0  # 현재 행 번호
-        current_col = 0  # 현재 열 번호
-
-        # first_cols의 첫 번째 원소에서 시작
-        if not first_cols:
-            self._log("first_cols가 비어있습니다")
-            return result
-
-        start_cell = first_cols[0]
-        self.hwp.SetPos(start_cell, 0, 0)
-        current_id = start_cell
-
-        self._log(f"시작 셀: {start_cell}")
-
-        # 전체 순회 (first_cols의 마지막까지)
-        max_iterations = boundary_result.table_cell_counts * 10  # 안전 장치
-        iteration = 0
-
-        while iteration < max_iterations:
-            iteration += 1
-
-            # 현재 셀 방문 횟수 증가
-            visit_count[current_id] = visit_count.get(current_id, 0) + 1
-            result.traversal_order.append(current_id)
-
-            self._log(f"방문: list_id={current_id}, visit_count={visit_count[current_id]}, row={current_row}, col={current_col}")
-
-            # 좌표가 아직 설정되지 않은 경우에만 설정
-            if current_id not in coord_assigned:
-                coord = CellCoordinate(
-                    list_id=current_id,
-                    row=current_row,
-                    col=current_col,
-                    visit_count=visit_count[current_id]
-                )
-                result.cells[current_id] = coord
-                coord_assigned[current_id] = True
-
-                # 최대 행/열 업데이트
-                result.max_row = max(result.max_row, current_row)
-                result.max_col = max(result.max_col, current_col)
-
-                self._log(f"  좌표 설정: ({current_row}, {current_col})")
-
-            # 오른쪽으로 이동
-            self.hwp.SetPos(current_id, 0, 0)
-            self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
-            next_id, _, _ = self.hwp.GetPos()
-
-            # 같은 셀에 머무르면 종료
-            if next_id == current_id:
-                self._log(f"종료: 더 이상 이동 불가 (list_id={current_id})")
-                break
-
-            # 다음 셀이 first_col 원소인지 확인
-            if next_id in first_cols_set:
-                # 이전 셀(current_id)의 방문 횟수로 행 번호 결정
-                prev_visit = visit_count.get(current_id, 1)
-
-                # 이전 서브셀을 처음 순회 → 첫 번째 행 (row=0)
-                # 이전에 1번 순회 → 두 번째 행 (row=1)
-                # 이전에 2번 순회 → 세 번째 행 (row=2)
-                current_row = prev_visit - 1 + 1  # 다음 행으로
-                # 실제로는: 이전 방문이 1번이면 다음은 row=1
-
-                # first_col을 만나면 열 번호 리셋
-                current_col = 0
-
-                self._log(f"first_col 도달: {next_id}, 이전 방문횟수={prev_visit}, 새 행={current_row}")
-            else:
-                # 일반 이동: 열 번호 증가
-                current_col += 1
-
-            current_id = next_id
-
-        return result
-
-    def map_cell_coordinates_v2(self, boundary_result: TableBoundaryResult = None) -> CellCoordinateResult:
-        """
-        first_col 기반으로 셀 좌표 매핑 (개선 버전)
-
-        알고리즘:
-        1. first_cols 순회하면서 각 행의 시작점 결정
-        2. 각 first_col에서 오른쪽으로 순회
-        3. 방문 횟수가 n인 셀을 만나면 → 그 셀이 속한 행은 n번째 행
-        4. first_col 간 순회에서 이미 좌표가 설정된 셀은 건너뜀
-        5. 열 번호는 현재 first_col로부터의 거리
-
-        Args:
-            boundary_result: 경계 분석 결과 (없으면 새로 계산)
-
-        Returns:
-            CellCoordinateResult: 셀 좌표 매핑 결과
-        """
-        if boundary_result is None:
-            boundary_result = self.check_boundary_table()
-
-        result = CellCoordinateResult()
-        first_cols = self._sort_first_cols_by_position(boundary_result.first_cols)
-        first_cols_set = set(first_cols)
-
-        self._log(f"first_cols (정렬): {first_cols}")
-
-        if not first_cols:
-            self._log("first_cols가 비어있습니다")
-            return result
-
-        # 방문 횟수 추적: list_id -> 방문 횟수
-        visit_count: Dict[int, int] = {}
-
-        # 좌표가 설정된 셀 추적
-        coord_assigned: Dict[int, bool] = {}
-
-        # 전체 순회: first_cols[0]에서 시작해서 다음 first_col까지 반복
-        current_first_col_idx = 0
-        current_row = 0
-
-        while current_first_col_idx < len(first_cols):
-            start_cell = first_cols[current_first_col_idx]
-            self.hwp.SetPos(start_cell, 0, 0)
-
-            current_id = start_cell
-            current_col = 0
-            row_for_this_pass = current_row
-
-            self._log(f"\n=== first_col[{current_first_col_idx}] = {start_cell}, row={row_for_this_pass} ===")
-
-            # 다음 first_col 또는 테이블 끝까지 순회
-            max_steps = boundary_result.table_cell_counts * 2
-            steps = 0
-
-            while steps < max_steps:
-                steps += 1
-
-                # 현재 셀 방문 횟수 증가
-                visit_count[current_id] = visit_count.get(current_id, 0) + 1
-                curr_visit = visit_count[current_id]
-
-                result.traversal_order.append(current_id)
-
-                self._log(f"  방문: list_id={current_id}, visit={curr_visit}, col={current_col}")
-
-                # 좌표가 아직 설정되지 않은 경우에만 설정
-                if current_id not in coord_assigned:
-                    # 행 번호 결정: 이 셀을 처음 방문(visit=1)이면 row_for_this_pass
-                    # 두 번째 방문(visit=2)이면 이미 이전 행에서 설정됨
-                    coord = CellCoordinate(
-                        list_id=current_id,
-                        row=row_for_this_pass,
-                        col=current_col,
-                        visit_count=curr_visit
-                    )
-                    result.cells[current_id] = coord
-                    coord_assigned[current_id] = True
-
-                    result.max_row = max(result.max_row, row_for_this_pass)
-                    result.max_col = max(result.max_col, current_col)
-
-                    self._log(f"    → 좌표 설정: ({row_for_this_pass}, {current_col})")
-
-                # 오른쪽으로 이동
-                self.hwp.SetPos(current_id, 0, 0)
-                self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
-                next_id, _, _ = self.hwp.GetPos()
-
-                # 같은 셀에 머무르면 이 패스 종료
-                if next_id == current_id:
-                    self._log(f"  패스 종료: 더 이상 이동 불가")
-                    break
-
-                # 다음 first_col을 만나면 이 패스 종료
-                if next_id in first_cols_set and next_id != start_cell:
-                    # 다음 first_col의 인덱스 찾기
-                    try:
-                        next_fc_idx = first_cols.index(next_id)
-                        # 다음 패스에서 처리할 first_col 업데이트
-                        if next_fc_idx > current_first_col_idx:
-                            self._log(f"  다음 first_col 도달: {next_id} (idx={next_fc_idx})")
-                            break
-                    except ValueError:
-                        pass
-
-                # 열 번호 증가
-                current_col += 1
-                current_id = next_id
-
-            # 다음 first_col로 이동
-            current_first_col_idx += 1
-            current_row += 1
-
-        return result
-
-    def map_cell_coordinates_v3(self, boundary_result: TableBoundaryResult = None) -> CellCoordinateResult:
-        """
-        서브셀 기반 셀 좌표 매핑
-
-        알고리즘:
-        1. first_col[0]에서 시작하여 오른쪽으로 순회
-        2. 새 셀(처음 방문)을 만나면 → 현재 행, 열+1
-        3. 이미 방문한 셀(2회 이상)을 만나면 → 행+1 (한 번만), 열은 왼쪽 열+1 유지
-        4. first_col을 만나면 → 열=0
-        5. 좌표는 최초 방문 시에만 설정
-
-        예시 (셀 2~10):
-        - 2,3,4,5,6,7,8: 처음 방문 → (0,0)~(0,6)
-        - 9: 처음 방문 → (0,7)
-        - 10: 9 재방문 후 새 셀 → 행+1, 열=7+1=8 → (1,8)
-
-        Args:
-            boundary_result: 경계 분석 결과
-
-        Returns:
-            CellCoordinateResult: 셀 좌표 매핑 결과
-        """
-        if boundary_result is None:
-            boundary_result = self.check_boundary_table()
-
-        result = CellCoordinateResult()
-        first_cols = self._sort_first_cols_by_position(boundary_result.first_cols)
-        first_cols_set = set(first_cols)
-
-        self._log(f"[v3] first_cols (정렬): {first_cols}")
-
-        if not first_cols:
-            self._log("[v3] first_cols가 비어있습니다")
-            return result
-
-        # 방문 횟수 추적: list_id -> 방문 횟수
-        visit_count: Dict[int, int] = {}
-
-        # 좌표가 설정된 셀 추적
-        coord_assigned: Dict[int, bool] = {}
-
-        # 시작
-        start_cell = first_cols[0]
-        self.hwp.SetPos(start_cell, 0, 0)
-        current_id = start_cell
-
-        current_row = 0
-        current_col = 0
-        row_changed = False  # 이번 재방문 구간에서 행 전환 여부
-
-        max_iterations = boundary_result.table_cell_counts * 20
-        iteration = 0
-
-        self._log(f"[v3] 시작 셀: {start_cell}")
-
-        # 재방문 구간에서의 열 카운터 (재방문 구간 끝나면 이 값+1이 새 셀의 열)
-        revisit_col_count = 0
-
-        while iteration < max_iterations:
-            iteration += 1
-
-            # 현재 셀 방문 횟수 증가
-            prev_visit = visit_count.get(current_id, 0)
-            visit_count[current_id] = prev_visit + 1
-            curr_visit = visit_count[current_id]
-
-            result.traversal_order.append(current_id)
-
-            self._log(f"[v3] 방문: list_id={current_id}, visit={curr_visit}, row={current_row}, col={current_col}")
-
-            # 2회 이상 방문한 셀이면 (재방문)
-            if curr_visit >= 2:
-                # 행 전환은 재방문 구간 시작 시 한 번만
-                if not row_changed:
-                    current_row += 1
-                    row_changed = True
-                    revisit_col_count = 0  # 재방문 구간 열 카운터 리셋
-                    self._log(f"[v3]   → 행 전환: row={current_row} (재방문 시작)")
-                else:
-                    revisit_col_count += 1  # 재방문 구간 내 열 증가
-            else:
-                # 처음 방문한 셀
-                if row_changed:
-                    # 재방문 구간이 끝났다 → 재방문한 셀 수만큼 열 증가
-                    current_col += revisit_col_count + 1
-                    row_changed = False
-                    self._log(f"[v3]   → 재방문 구간 종료, col={current_col}")
-
-                if current_id not in coord_assigned:
-                    coord = CellCoordinate(
-                        list_id=current_id,
-                        row=current_row,
-                        col=current_col,
-                        visit_count=curr_visit
-                    )
-                    result.cells[current_id] = coord
-                    coord_assigned[current_id] = True
-
-                    result.max_row = max(result.max_row, current_row)
-                    result.max_col = max(result.max_col, current_col)
-
-                    self._log(f"[v3]   → 좌표 설정: ({current_row}, {current_col})")
-
-            # 오른쪽으로 이동
-            self.hwp.SetPos(current_id, 0, 0)
-            self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
-            next_id, _, _ = self.hwp.GetPos()
-
-            # 같은 셀에 머무르면 종료
-            if next_id == current_id:
-                self._log(f"[v3] 종료: 더 이상 이동 불가")
-                break
-
-            # 다음 셀이 first_col이면
-            if next_id in first_cols_set:
-                next_visit = visit_count.get(next_id, 0)
-                if next_visit == 0:
-                    # 처음 방문하는 새 first_col → 새 행 시작, 열=0
-                    current_row += 1
-                    current_col = 0
-                    row_changed = False
-                    self._log(f"[v3]   새 first_col 도달: {next_id}, row={current_row}, col=0")
-                else:
-                    # 이미 방문한 first_col 재방문
-                    # 재방문 구간 중이면 그냥 열=0으로만 리셋 (행 증가 없음)
-                    # 재방문 구간이 아니면 재방문 구간 시작
-                    if not row_changed:
-                        # 새로운 재방문 구간 시작 → 행 증가
-                        current_row += 1
-                        row_changed = True
-                        revisit_col_count = 0
-                        self._log(f"[v3]   기존 first_col 재방문 (새 구간): {next_id}, row={current_row}, col=0")
-                    else:
-                        # 이미 재방문 구간 중 → 행 증가 없이 열만 리셋
-                        self._log(f"[v3]   기존 first_col 재방문 (구간 내): {next_id}, col=0 (행 유지)")
-                    current_col = 0
-            else:
-                # 일반 셀로 이동
-                next_visit = visit_count.get(next_id, 0)
-                if next_visit == 0 and not row_changed:
-                    # 처음 방문할 셀이고 재방문 구간이 아니면 → 열 증가
-                    current_col += 1
-                # 재방문 구간 중이거나 재방문할 셀이면 열 유지
-
-            current_id = next_id
-
-        return result
-
-    def _adjust_column_by_upper_cells(self, result: CellCoordinateResult) -> CellCoordinateResult:
-        """
-        2행부터 위쪽 셀을 기준으로 열 번호 조정
-
-        알고리즘:
-        1. 2행부터 각 셀에 대해
-        2. 커서를 0행까지 위로 올리면서 모든 위쪽 셀의 열 중 가장 큰 값을 찾음
-        3. 열 번호 = max(위쪽 셀들의 최대 열, 왼쪽 셀의 열 + 1)
-        4. 0행은 그대로 유지
-
-        Args:
-            result: 기존 좌표 매핑 결과
-
-        Returns:
-            CellCoordinateResult: 열 번호가 조정된 결과
-        """
-        if not result.cells:
-            return result
-
-        # 행별로 셀 그룹화
-        rows: Dict[int, List[CellCoordinate]] = {}
-        for cell in result.cells.values():
-            if cell.row not in rows:
-                rows[cell.row] = []
-            rows[cell.row].append(cell)
-
-        # 각 행 내에서 열 기준 정렬
-        for row_idx in rows:
-            rows[row_idx].sort(key=lambda c: c.col)
-
-        self._log(f"\n[열 조정] 시작, 총 {len(rows)}개 행")
-
-        # 0행은 그대로, 1행부터 조정
-        for row_idx in sorted(rows.keys()):
-            if row_idx == 0:
-                continue
-
-            cells_in_row = rows[row_idx]
-            self._log(f"\n[열 조정] {row_idx}행 처리 ({len(cells_in_row)}개 셀)")
-
-            for i, cell in enumerate(cells_in_row):
-                # 왼쪽 셀의 열 번호 (없으면 -1)
-                left_col = cells_in_row[i - 1].col if i > 0 else -1
-
-                # 위쪽 셀들 찾기: 0행까지 커서를 위로 올리면서 최대 열 값 찾기
-                max_upper_col = -1
-                visited_upper = []
-
-                self.hwp.SetPos(cell.list_id, 0, 0)
-                current_id = cell.list_id
-
-                loop_count = 0
-                while loop_count < 50:  # 무한루프 방지
-                    loop_count += 1
-                    self.hwp.MovePos(MOVE_UP_OF_CELL, 0, 0)  # moveUpOfCell = 102
-                    upper_id, _, _ = self.hwp.GetPos()
-
-                    # 더 이상 위로 이동 못하면 종료
-                    if upper_id == current_id:
-                        break
-
-                    # 위쪽 셀의 열 번호 확인
-                    if upper_id in result.cells:
-                        upper_col = result.cells[upper_id].col
-                        upper_row = result.cells[upper_id].row
-                        visited_upper.append((upper_id, upper_col, upper_row))
-                        if upper_col > max_upper_col:
-                            max_upper_col = upper_col
-
-                        # 0행에 도달하면 종료
-                        if upper_row == 0:
-                            break
-
-                    current_id = upper_id
-
-                if visited_upper:
-                    self._log(f"  셀 {cell.list_id}: 위쪽 셀들 {visited_upper}, max_upper_col={max_upper_col}")
-
-                # 새 열 번호 = max(위쪽 셀들의 최대 열, 왼쪽 셀 열 + 1)
-                new_col = max(max_upper_col, left_col + 1)
-
-                if new_col != cell.col:
-                    self._log(f"  셀 {cell.list_id}: col {cell.col} → {new_col} (max_upper={max_upper_col}, left+1={left_col + 1})")
-                    result.cells[cell.list_id].col = new_col
-
-            # 행 내에서 다시 정렬 (열 번호가 변경되었으므로)
-            rows[row_idx].sort(key=lambda c: c.col)
-
-        # max_col 재계산
-        result.max_col = max(c.col for c in result.cells.values()) if result.cells else 0
-
-        return result
-
-    def map_cell_coordinates_v4(self, boundary_result: TableBoundaryResult = None) -> CellCoordinateResult:
-        """
-        v3 + 위쪽 셀 기준 열 조정
-
-        1단계: v3로 기본 좌표 매핑
-        2단계: 2행부터 위쪽 셀 기준으로 열 번호 조정
-
-        Args:
-            boundary_result: 경계 분석 결과
-
-        Returns:
-            CellCoordinateResult: 최종 좌표 매핑 결과
-        """
-        # 1단계: v3로 기본 매핑
-        result = self.map_cell_coordinates_v3(boundary_result)
-
-        # 2단계: 열 조정
-        result = self._adjust_column_by_upper_cells(result)
-
-        return result
-
-    def print_cell_coordinates(self, result: CellCoordinateResult = None):
-        """셀 좌표 매핑 결과 출력"""
-        if result is None:
-            result = self.map_cell_coordinates_v4()
-
-        print("\n=== 셀 좌표 매핑 결과 ===")
-        print(f"최대 행: {result.max_row}, 최대 열: {result.max_col}")
-        print(f"총 셀 수: {len(result.cells)}")
-        print("\n좌표 매핑:")
-
-        # 행 기준 정렬하여 출력
-        sorted_cells = sorted(result.cells.values(), key=lambda c: (c.row, c.col))
-        current_row = -1
-        for cell in sorted_cells:
-            if cell.row != current_row:
-                current_row = cell.row
-                print(f"\n[행 {current_row}]")
-            print(f"  ({cell.row}, {cell.col}): list_id={cell.list_id}, visit={cell.visit_count}")
-
-    def build_cell_adjacency(self, coord_result: CellCoordinateResult = None) -> CellAdjacencyResult:
-        """
-        모든 셀의 인접 노드(상/하/좌/우) 계산 - 양방향 관계 활용
-
-        알고리즘:
-        1. 각 셀에서 상/하/좌/우로 커서 이동하여 인접 셀 1개씩 찾음
-        2. 양방향 관계를 활용: A→B 이면 B→A도 성립
-           예: 13의 up이 3이면, 3의 down에 13 추가
-        3. 이를 통해 병합 셀(13)이 여러 셀(3~8)과 인접한 경우도 처리
-
-        Args:
-            coord_result: 셀 좌표 매핑 결과 (없으면 새로 계산)
-
-        Returns:
-            CellAdjacencyResult: 모든 셀의 인접 관계
-        """
-        if coord_result is None:
-            coord_result = self.map_cell_coordinates_v4()
-
-        result = CellAdjacencyResult(
-            max_row=coord_result.max_row,
-            max_col=coord_result.max_col
-        )
-
-        self._log(f"\n[인접 관계] 총 {len(coord_result.cells)}개 노드")
-
-        # 1단계: 모든 셀에 대해 빈 CellAdjacency 생성
-        for list_id, cell in coord_result.cells.items():
-            result.nodes[list_id] = CellAdjacency(
-                list_id=list_id,
-                row=cell.row,
-                col=cell.col
-            )
-
-        # 2단계: 각 셀에서 커서 이동으로 인접 셀 찾고 양방향 관계 설정
-        for list_id, cell in coord_result.cells.items():
-            adjacency = result.nodes[list_id]
-
-            # 왼쪽 인접
-            self.hwp.SetPos(list_id, 0, 0)
-            self.hwp.MovePos(MOVE_LEFT_OF_CELL, 0, 0)
-            left_id, _, _ = self.hwp.GetPos()
-            if left_id != list_id and left_id in coord_result.cells:
-                if left_id not in adjacency.left:
-                    adjacency.left.append(left_id)
-                # 양방향: left_id의 right에 현재 셀 추가
-                if list_id not in result.nodes[left_id].right:
-                    result.nodes[left_id].right.append(list_id)
-
-            # 오른쪽 인접
-            self.hwp.SetPos(list_id, 0, 0)
-            self.hwp.MovePos(MOVE_RIGHT_OF_CELL, 0, 0)
-            right_id, _, _ = self.hwp.GetPos()
-            if right_id != list_id and right_id in coord_result.cells:
-                if right_id not in adjacency.right:
-                    adjacency.right.append(right_id)
-                # 양방향: right_id의 left에 현재 셀 추가
-                if list_id not in result.nodes[right_id].left:
-                    result.nodes[right_id].left.append(list_id)
-
-            # 위쪽 인접
-            self.hwp.SetPos(list_id, 0, 0)
-            self.hwp.MovePos(MOVE_UP_OF_CELL, 0, 0)
-            up_id, _, _ = self.hwp.GetPos()
-            if up_id != list_id and up_id in coord_result.cells:
-                if up_id not in adjacency.up:
-                    adjacency.up.append(up_id)
-                # 양방향: up_id의 down에 현재 셀 추가
-                if list_id not in result.nodes[up_id].down:
-                    result.nodes[up_id].down.append(list_id)
-
-            # 아래쪽 인접
-            self.hwp.SetPos(list_id, 0, 0)
-            self.hwp.MovePos(MOVE_DOWN_OF_CELL, 0, 0)
-            down_id, _, _ = self.hwp.GetPos()
-            if down_id != list_id and down_id in coord_result.cells:
-                if down_id not in adjacency.down:
-                    adjacency.down.append(down_id)
-                # 양방향: down_id의 up에 현재 셀 추가
-                if list_id not in result.nodes[down_id].up:
-                    result.nodes[down_id].up.append(list_id)
-
-        # 3단계: 디버그 출력
-        for list_id, adjacency in result.nodes.items():
-            cell = coord_result.cells[list_id]
-            self._log(f"  노드 {list_id} ({cell.row},{cell.col}): "
-                      f"←{adjacency.left} →{adjacency.right} "
-                      f"↑{adjacency.up} ↓{adjacency.down}")
-
-        return result
-
-    def print_cell_adjacency(self, adjacency_result: CellAdjacencyResult = None):
-        """셀 인접 관계 출력"""
-        if adjacency_result is None:
-            adjacency_result = self.build_cell_adjacency()
-
-        print("\n=== 셀 인접 관계 (노드 그래프) ===")
-        print(f"총 노드 수: {len(adjacency_result.nodes)}")
-        print(f"최대 행: {adjacency_result.max_row}, 최대 열: {adjacency_result.max_col}")
-
-        # 행 기준 정렬하여 출력
-        sorted_nodes = sorted(adjacency_result.nodes.values(), key=lambda n: (n.row, n.col))
-
-        current_row = -1
-        for node in sorted_nodes:
-            if node.row != current_row:
-                current_row = node.row
-                print(f"\n[행 {current_row}]")
-
-            left_str = f"←{node.left}" if node.left else "←[]"
-            right_str = f"→{node.right}" if node.right else "→[]"
-            up_str = f"↑{node.up}" if node.up else "↑[]"
-            down_str = f"↓{node.down}" if node.down else "↓[]"
-
-            print(f"  노드 {node.list_id} ({node.row},{node.col}): {left_str} {right_str} {up_str} {down_str}")
-
     def _find_matching_last_col(self, start_cell: int, last_cols: List[int]) -> Optional[int]:
         """
         start_cell에서 오른쪽으로 이동하여 해당 행의 last_col 찾기
@@ -1757,39 +1143,6 @@ class TableBoundary:
                 print(f"  col={cell.col_index}: list_id={cell.list_id}, "
                       f"width={cell.width}, cumulative={cell.cumulative_width}")
 
-    def save_adjacency_to_json(self, adjacency_result: CellAdjacencyResult = None,
-                                filepath: str = None) -> str:
-        """
-        인접 관계를 JSON 파일로 저장
-
-        Args:
-            adjacency_result: 인접 관계 결과 (없으면 새로 계산)
-            filepath: 저장 경로 (없으면 기본 경로 사용)
-
-        Returns:
-            str: 저장된 파일 경로
-        """
-        if adjacency_result is None:
-            adjacency_result = self.build_cell_adjacency()
-
-        if filepath is None:
-            filepath = os.path.join(os.path.dirname(__file__), '..', 'cell_adjacency.json')
-
-        # dataclass를 dict로 변환
-        data = {
-            'max_row': adjacency_result.max_row,
-            'max_col': adjacency_result.max_col,
-            'nodes': {
-                str(list_id): asdict(node)
-                for list_id, node in adjacency_result.nodes.items()
-            }
-        }
-
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-
-        print(f"인접 관계 저장됨: {filepath}")
-        return filepath
 
 
 if __name__ == "__main__":
@@ -1819,17 +1172,6 @@ if __name__ == "__main__":
     size_results = boundary.sub_table_by_size(result)
     boundary.print_sub_table_by_size(size_results)
 
-    # 셀 좌표 매핑 (v4: 서브셀 + 위쪽 셀 기준 열 조정)
-    coord_result = boundary.map_cell_coordinates_v4(result)
-    boundary.print_cell_coordinates(coord_result)
-
-    # 셀 인접 관계 (노드 그래프)
-    adjacency_result = boundary.build_cell_adjacency(coord_result)
-    boundary.print_cell_adjacency(adjacency_result)
-
     # 행별 셀 너비 계산
     width_result = boundary.calculate_row_widths(result)
     boundary.print_row_widths(width_result)
-
-    # JSON 파일로 저장
-    boundary.save_adjacency_to_json(adjacency_result)
