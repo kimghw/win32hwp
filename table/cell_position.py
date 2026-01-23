@@ -127,15 +127,15 @@ class CellPositionCalculator:
         if not table_info.is_in_table():
             raise ValueError("커서가 테이블 내부에 있지 않습니다.")
 
-        # 경계 분석으로 left_border_line, right_border_line 획득
+        # 경계 분석으로 left_border_cells, right_border_cells 획득
         boundary_result = boundary.check_boundary_table()
-        left_border_line = boundary._sort_left_border_line_by_position(boundary_result.left_border_line)
-        right_border_line_set = set(boundary_result.right_border_line)
-        left_border_line_set = set(left_border_line)
+        left_border_cells = boundary._sort_left_border_cells_by_position(boundary_result.left_border_cells)
+        right_border_cells_set = set(boundary_result.right_border_cells)
+        left_border_cells_set = set(left_border_cells)
 
         if self.debug:
-            print(f"[calculate_grid] left_border_line: {left_border_line}")
-            print(f"[calculate_grid] right_border_line: {list(right_border_line_set)}")
+            print(f"[calculate_grid] left_border_cells: {left_border_cells}")
+            print(f"[calculate_grid] right_border_cells: {list(right_border_cells_set)}")
 
         # 1단계: 모든 셀의 물리적 좌표 수집
         cell_positions = {}  # list_id -> {start_x, end_x, start_y, end_y}
@@ -145,7 +145,7 @@ class CellPositionCalculator:
         cumulative_y = 0
         total_cells = 0
 
-        for row_idx, row_start in enumerate(left_border_line):
+        for row_idx, row_start in enumerate(left_border_cells):
             if total_cells >= max_cells:
                 if self.debug:
                     print(f"[경고] 최대 셀 수({max_cells}) 도달, 중단")
@@ -205,7 +205,7 @@ class CellPositionCalculator:
 
                 if (right_id != current_id and
                     right_id not in visited_in_row and
-                    right_id not in left_border_line_set):
+                    right_id not in left_border_cells_set):
                     visited_in_row.add(right_id)
                     queue.append((right_id, end_x, start_y))
 
@@ -217,22 +217,22 @@ class CellPositionCalculator:
 
                     if (down_id != current_id and
                         down_id not in visited_in_row and
-                        down_id not in left_border_line_set):
+                        down_id not in left_border_cells_set):
                         visited_in_row.add(down_id)
                         queue.append((down_id, start_x, end_y))
 
             cumulative_y = row_end_y
 
         # 1.5단계: 테이블 경계 좌표 계산 및 필터링
-        # X 경계: left_border_line 셀의 좌측(0) ~ right_border_line 셀의 우측
-        # Y 경계: top_border_line의 상단(0) ~ bottom_border_line의 하단(cumulative_y)
+        # X 경계: left_border_cells 셀의 좌측(0) ~ right_border_cells 셀의 우측
+        # Y 경계: top_border_cells의 상단(0) ~ bottom_border_cells의 하단(cumulative_y)
         table_min_x = 0
         table_max_x = 0
         table_min_y = 0
         table_max_y = cumulative_y
 
-        # right_border_line 셀들의 우측 좌표 중 최대값 계산
-        for last_col_id in right_border_line_set:
+        # right_border_cells 셀들의 우측 좌표 중 최대값 계산
+        for last_col_id in right_border_cells_set:
             if last_col_id in cell_positions:
                 table_max_x = max(table_max_x, cell_positions[last_col_id]['end_x'])
 

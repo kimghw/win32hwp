@@ -3,10 +3,10 @@
 테이블 경계 셀에 라벨 작성 테스트
 
 각 경계 셀에 해당하는 라벨을 텍스트로 삽입:
-- top_border_line: "첫행"
-- bottom_border_line: "끝행"
-- left_border_line: "첫열"
-- right_border_line: "끝열"
+- top_border_cells: "첫행"
+- bottom_border_cells: "끝행"
+- left_border_cells: "첫열"
+- right_border_cells: "끝열"
 """
 
 import sys
@@ -42,24 +42,24 @@ def main():
     result = boundary.check_boundary_table()
 
     print("\n=== 경계 정보 ===")
-    print(f"top_border_line: {result.top_border_line}")
-    print(f"bottom_border_line: {result.bottom_border_line}")
-    print(f"left_border_line: {result.left_border_line}")
-    print(f"right_border_line: {result.right_border_line}")
+    print(f"top_border_cells: {result.top_border_cells}")
+    print(f"bottom_border_cells: {result.bottom_border_cells}")
+    print(f"left_border_cells: {result.left_border_cells}")
+    print(f"right_border_cells: {result.right_border_cells}")
 
     # 각 셀에 라벨 작성
     labels = {}
 
-    for cell_id in result.top_border_line:
+    for cell_id in result.top_border_cells:
         labels.setdefault(cell_id, []).append("첫행")
 
-    for cell_id in result.bottom_border_line:
+    for cell_id in result.bottom_border_cells:
         labels.setdefault(cell_id, []).append("끝행")
 
-    for cell_id in result.left_border_line:
+    for cell_id in result.left_border_cells:
         labels.setdefault(cell_id, []).append("첫열")
 
-    for cell_id in result.right_border_line:
+    for cell_id in result.right_border_cells:
         labels.setdefault(cell_id, []).append("끝열")
 
     print("\n=== 라벨 작성 ===")
