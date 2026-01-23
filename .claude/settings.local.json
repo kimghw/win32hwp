@@ -93,7 +93,17 @@
       "Bash(pip3 show:*)",
       "Bash(pip3 list:*)",
       "Bash(kill:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(/tmp/anthropic_venv/bin/pip install:*)",
+      "Bash(/tmp/anthropic_venv/bin/python3:*)",
+      "Bash(claude -p \"현재 남은 사용량\\(quota\\)이나 rate limit 정보를 알려줘\" --output-format json)",
+      "Bash(claude:*)",
+      "WebFetch(domain:openpyxl.readthedocs.io)",
+      "WebFetch(domain:www.geeksforgeeks.org)",
+      "WebFetch(domain:wikidocs.net)",
+      "WebFetch(domain:martinii.fun)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:python-docx.readthedocs.io)"
     ]
   },
   "hooks": {
